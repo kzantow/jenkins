@@ -79,6 +79,7 @@ import org.kohsuke.stapler.export.ExportedBean;
 import org.kohsuke.stapler.interceptor.RequirePOST;
 
 import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.xml.parsers.ParserConfigurationException;
@@ -98,6 +99,7 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
@@ -778,45 +780,76 @@ public abstract class PluginManager extends AbstractModelObject implements OnMas
      * Performs the installation of the plugins.
      */
     public void doInstall(StaplerRequest req, StaplerResponse rsp) throws IOException, ServletException {
-        boolean dynamicLoad = req.getParameter("dynamicLoad")!=null;
+        Set<String> plugins = new LinkedHashSet<>();
 
         Enumeration<String> en = req.getParameterNames();
         while (en.hasMoreElements()) {
             String n =  en.nextElement();
             if(n.startsWith("plugin.")) {
                 n = n.substring(7);
-                // JENKINS-22080 plugin names can contain '.' as could (according to rumour) update sites
-                int index = n.indexOf('.');
-                UpdateSite.Plugin p = null;
+                plugins.add(n);
+            }
+        }
+
+        boolean dynamicLoad = req.getParameter("dynamicLoad")!=null;
+        install(plugins, dynamicLoad);
+
+        rsp.sendRedirect("../updateCenter/");
+    }
+
+    /**
+     * Performs the installation of the plugins.
+     * @param plugins The collection of plugins to install.
+     * @param dynamicLoad If true, the plugin will be dynamically loaded into this Jenkins. If false, 
+     *                    the plugin will only take effect after the reboot.
+     *                    See {@link UpdateCenter#isRestartRequiredForCompletion()}
+     * @return The install job list.                   
+     * @since FIXME                    
+     */
+    public List<Future<UpdateCenter.UpdateCenterJob>> install(@Nonnull Collection<String> plugins, boolean dynamicLoad) {
+        List<Future<UpdateCenter.UpdateCenterJob>> installJobs = new ArrayList<>();
+        
+        for (String n : plugins) {
+            // JENKINS-22080 plugin names can contain '.' as could (according to rumour) update sites
+            int index = n.indexOf('.');
+            UpdateSite.Plugin p = null;
+            
+            if (index == -1) {
+                p = getPlugin(n, UpdateCenter.ID_DEFAULT);
+            } else {
                 while (index != -1) {
                     if (index + 1 >= n.length()) {
                         break;
                     }
                     String pluginName = n.substring(0, index);
                     String siteName = n.substring(index + 1);
-                    UpdateSite updateSite = Jenkins.getInstance().getUpdateCenter().getById(siteName);
-                    if (updateSite == null) {
-                        throw new Failure("No such update center: " + siteName);
-                    } else {
-                        UpdateSite.Plugin plugin = updateSite.getPlugin(pluginName);
-                        if (plugin != null) {
-                            if (p != null) {
-                                throw new Failure("Ambiguous plugin: " + n);
-                            }
-                            p = plugin;
+                    UpdateSite.Plugin plugin = getPlugin(pluginName, siteName);
+                    // TODO: Someone that understands what the following logic is about, please add a comment.
+                    if (plugin != null) {
+                        if (p != null) {
+                            throw new Failure("Ambiguous plugin: " + n);
                         }
+                        p = plugin;
                     }
                     index = n.indexOf('.', index + 1);
                 }
-                if (p == null) {
-                    throw new Failure("No such plugin: " + n);
-                }
-                p.deploy(dynamicLoad);
             }
+            if (p == null) {
+                throw new Failure("No such plugin: " + n);
+            }
+            installJobs.add(p.deploy(dynamicLoad));
         }
-        rsp.sendRedirect("../updateCenter/");
+        
+        return installJobs;
     }
 
+    private UpdateSite.Plugin getPlugin(String pluginName, String siteName) {
+        UpdateSite updateSite = Jenkins.getInstance().getUpdateCenter().getById(siteName);
+        if (updateSite == null) {
+            throw new Failure("No such update center: " + siteName);
+        }
+        return updateSite.getPlugin(pluginName);
+    }
 
     /**
      * Bare-minimum configuration mechanism to change the update center.
