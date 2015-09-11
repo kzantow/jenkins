@@ -371,7 +371,6 @@ THE SOFTWARE.
                   <groupId>org.jenkins-ci.plugins</groupId>
                   <artifactId>junit</artifactId>
                   <version>1.2-beta-4</version>
->>>>>>> Stashed changes
                   <type>hpi</type>
                 </artifactItem>
                 <artifactItem>
