@@ -25,6 +25,7 @@ package jenkins.install;
 
 import hudson.util.VersionNumber;
 import jenkins.model.Jenkins;
+import jenkins.util.xml.XMLUtils;
 import org.apache.commons.io.FileUtils;
 
 import javax.annotation.Nonnull;
@@ -44,26 +45,31 @@ public class StartupUtil {
 
     private static final Logger LOGGER = Logger.getLogger(StartupUtil.class.getName());
 
+    private static final VersionNumber NEW_INSTALL_VERSION = new VersionNumber("1.0");
+    
     /**
      * Get the type of "startup" currently under way in Jenkins.
      * @return The type of "startup" currently under way in Jenkins.
      */
     public static StartupType getStartupType() {
-        String lastRunVersion = getLastExecVersion();
+        VersionNumber lastRunVersion = new VersionNumber(getLastExecVersion());
 
         // Neither the top level config or the lastExecVersionFile have a version
         // stored in them, which means it's a new install.
-        if (lastRunVersion.equals("1.0")) {
+        if (lastRunVersion.compareTo(NEW_INSTALL_VERSION) == 0) {
             return StartupType.NEW;
         }
 
         // We have a last version.
 
-        String currentRunVersion = getCurrentExecVersion();
-        if (lastRunVersion.equals(currentRunVersion)) {
-            return StartupType.RESTART;
-        } else {
+        VersionNumber currentRunVersion = new VersionNumber(getCurrentExecVersion());
+        if (lastRunVersion.isOlderThan(currentRunVersion)) {
             return StartupType.UPGRADE;
+        } else if (lastRunVersion.isNewerThan(currentRunVersion)) {
+            return StartupType.DOWNGRADE;
+        } else {
+            // Last running version was the same as "this" running version.
+            return StartupType.RESTART;
         }
     }
 
@@ -96,12 +102,24 @@ public class StartupUtil {
             }
         } else {
             // Backward compatibility. Use the last version stored in the top level config.xml.
-            VersionNumber storedVersion = Jenkins.getStoredVersion();
-            if (storedVersion != null) {
-                return storedVersion.toString();
-            } else {
-                return "1.0";
+            // Going to read the value directly from the config.xml file Vs hoping that the 
+            // Jenkins startup sequence has moved far enough along that it has loaded the
+            // global config. It can't load the global config until well into the startup
+            // sequence because the unmarshal requires numerous objects to be created e.g.
+            // it requires the Plugin Manager. It happens too late and it's too risky to
+            // change how it currently works.
+            File configFile = getConfigFile();
+            if (configFile.exists()) {
+                try {
+                    String lastVersion = XMLUtils.getValue("/hudson/version", configFile);
+                    if (lastVersion.length() > 0) {
+                        return lastVersion;
+                    }
+                } catch (Exception e) {
+                    LOGGER.log(SEVERE, "Unexpected error reading global config.xml", e);
+                }
             }
+            return NEW_INSTALL_VERSION.toString();
         }
     }
 
@@ -116,6 +134,10 @@ public class StartupUtil {
         } catch (IOException e) {
             LOGGER.log(SEVERE, "Failed to save " + lastExecVersionFile.getAbsolutePath(), e);
         }
+    }
+
+    static File getConfigFile() {
+        return new File(Jenkins.getActiveInstance().getRootDir(), "config.xml");
     }
 
     static File getLastExecVersionFile() {
