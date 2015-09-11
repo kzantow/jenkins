@@ -1,9 +1,8 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define"
 	xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
-	<j:if test="${app.isFirstRun() || h.startupType.name() == 'NEW'}">
+	<j:if test="${(app.isFirstRun() || h.startupType.name() == 'NEW') &amp;&amp; !h.isUnitTest}">
 		<div class="plugin-setup-wizard bootstrap-3"> </div>
-		
 		<st:adjunct includes="plugin-setup-wizard" />
 	</j:if>
 </j:jelly>
