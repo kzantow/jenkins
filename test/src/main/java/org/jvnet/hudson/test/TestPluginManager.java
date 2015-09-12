@@ -33,6 +33,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.Collection;
 import java.util.HashSet;
@@ -62,36 +63,51 @@ public class TestPluginManager extends PluginManager {
 
     @Override
     protected Collection<String> loadBundledPlugins() throws Exception {
+        Set<String> names = new HashSet<>();
+        
+        File warBundledPlugins = new File(WarExploder.getExplodedDir(), "WEB-INF/plugins");
+
+        names.addAll(loadBundledPlugins(warBundledPlugins, this));
+        names.addAll(loadTestBundledPlugins(this));
+
+        return names;
+    }
+    
+    public static Set<String> loadTestBundledPlugins(PluginManager pluginManager) throws IOException, URISyntaxException {
+        File testBundledPlugins = new File(System.getProperty("buildDirectory"), "bundled-plugins"); // Copied by maven - see pom.xml
+        return loadBundledPlugins(testBundledPlugins, pluginManager);
+    }
+
+    private static Set<String> loadBundledPlugins(File fromDir, PluginManager pluginManager) throws IOException, URISyntaxException {
         Set<String> names = new HashSet<String>();
 
-        File bundledPlugins = new File(WarExploder.getExplodedDir(), "WEB-INF/plugins");
-        File[] children = bundledPlugins.listFiles();
+        File[] children = fromDir.listFiles();
         if (children==null)
-            throw new Error("Unable to find "+bundledPlugins);
+            throw new Error("Unable to find "+fromDir);
         for (File child : children) {
             try {
                 names.add(child.getName());
 
-                copyBundledPlugin(child.toURI().toURL(), child.getName());
+                pluginManager.copyBundledPlugin(child.toURI().toURL(), child.getName());
             } catch (IOException e) {
                 LOGGER.log(Level.SEVERE, "Failed to extract the bundled plugin "+child,e);
             }
         }
         // If running tests for a plugin, include the plugin being tested
-        URL u = getClass().getClassLoader().getResource("the.jpl");
+        URL u = TestPluginManager.class.getClassLoader().getResource("the.jpl");
         if(u==null){
-        	u = getClass().getClassLoader().getResource("the.hpl"); // keep backward compatible 
+        	u = TestPluginManager.class.getClassLoader().getResource("the.hpl"); // keep backward compatible 
         }
         if (u!=null) try {
             names.add("the.jpl");
-            copyBundledPlugin(u, "the.jpl");
+            pluginManager.copyBundledPlugin(u, "the.jpl");
         } catch (IOException e) {
             LOGGER.log(Level.SEVERE, "Failed to copy the.jpl",e);
         }
 
         // and pick up test dependency *.jpi that are placed by maven-hpi-plugin TestDependencyMojo.
         // and copy them into $JENKINS_HOME/plugins.
-        URL index = getClass().getResource("/test-dependencies/index");
+        URL index = TestPluginManager.class.getResource("/test-dependencies/index");
         if (index!=null) {// if built with maven-hpi-plugin < 1.52 this file won't exist.
             BufferedReader r = new BufferedReader(new InputStreamReader(index.openStream(),"UTF-8"));
             try {
@@ -100,9 +116,9 @@ public class TestPluginManager extends PluginManager {
                 	final URL url = new URL(index, line + ".jpi");
 					File f = new File(url.toURI());
                 	if(f.exists()){
-                		copyBundledPlugin(url, line + ".jpi");
+                		pluginManager.copyBundledPlugin(url, line + ".jpi");
                 	}else{
-                		copyBundledPlugin(new URL(index, line + ".hpi"), line + ".jpi"); // fallback to hpi
+                		pluginManager.copyBundledPlugin(new URL(index, line + ".hpi"), line + ".jpi"); // fallback to hpi
                 	}
                 }
             } finally {
@@ -112,7 +128,7 @@ public class TestPluginManager extends PluginManager {
 
         return names;
     }
-    
+
     // Overwrite PluginManager#stop, not to release plugins in each tests.
     // Releasing plugins result fail to access files in webapp directory in following tests.
     @Override
