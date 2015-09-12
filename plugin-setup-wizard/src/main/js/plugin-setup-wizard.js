@@ -59,6 +59,7 @@ var createFirstRunDialog = function() {
 						setTimeout(updateStatus, 500);
 					}
 					else {
+						jenkins.get('/saveLastExecVersion');
 						jenkins.go('/updateCenter');
 					}
 				});
