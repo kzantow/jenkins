@@ -21,6 +21,6 @@ describe("plugin-setup-wizard.js", function () {
             expect(wizard.size()).toBe(1);
             
             done();
-        }, '<html><head resURL="/jenkins"></head><body><div class="plugin-setup-wizard">Buuuh</div></body></html>');
+        }, '<html><head data-rooturl="/jenkins"></head><body><div class="plugin-setup-wizard">Buuuh</div></body></html>');
     });
 });

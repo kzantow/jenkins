@@ -4,6 +4,13 @@ var builder = require('jenkins-js-builder');
 // 2) gulp
 var gulp = require('gulp');
 
+// hack to prevent the build from breaking during watch
+var plumber = require('gulp-plumber');
+var handleError = function(err) {
+  console.log(err.toString());
+  this.emit('end');
+};
+
 // 3) gulp plugins
 var jshint = require('gulp-jshint');
 var sass = require('gulp-sass');
@@ -58,11 +65,11 @@ gulp.task('lint', function(){
 });
 
 gulp.task('resources:watch', function() {
-	gulp.watch(dest+'/*.js', ['copy-to-resources']);
+	gulp.watch(dest+'/*.*', ['copy-to-resources']);
 });
 
 gulp.task('copy-to-resources', function() {
-    gulp.src(dest+'/*.js')
+    gulp.src(dest+'/*.*')
 	    .pipe(gulp.dest('./target/classes'));
 });
 
