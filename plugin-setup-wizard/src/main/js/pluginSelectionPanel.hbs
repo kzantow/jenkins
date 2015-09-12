@@ -4,15 +4,18 @@
 <div class="modal-body">
 	<div class="container plugin-selector">
 		<div class="categories col-sm-3">
-		  {{#uhh}}
-		  <div>{{this}}</div>
-		  {{/uhh}}
+		  {{#plugins}}
+		  <div>{{plugin.name}}</div>
+		  {{/plugins}}
 		</div>
 		<div class="plugins col-sm-9">
 		</div>
 	</div>
 </div>
 <div class="modal-footer">
+	<button type="button" class="btn btn-primary install-home">
+		Back
+	</button>
 	<button type="button" class="btn btn-primary">
 		Install
 	</button>

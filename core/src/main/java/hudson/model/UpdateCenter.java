@@ -585,6 +585,7 @@ public class UpdateCenter extends AbstractModelObject implements Saveable, OnMas
      * Returns a list of plugins that should be shown in the "available" tab, grouped by category.
      * A plugin with multiple categories will appear multiple times in the list.
      */
+    @Exported
     public PluginEntry[] getCategorizedAvailables() {
         TreeSet<PluginEntry> entries = new TreeSet<PluginEntry>();
         for (Plugin p : getAvailables()) {
@@ -1540,8 +1541,11 @@ public class UpdateCenter extends AbstractModelObject implements Saveable, OnMas
         }
     }
 
+    @ExportedBean
     public static final class PluginEntry implements Comparable<PluginEntry> {
+    	@Exported
         public Plugin plugin;
+    	@Exported
         public String category;
         private PluginEntry(Plugin p, String c) { plugin = p; category = c; }
 
