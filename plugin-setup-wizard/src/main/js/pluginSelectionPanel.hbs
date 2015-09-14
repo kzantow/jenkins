@@ -5,19 +5,22 @@
 	<div class="plugin-selector">
 		<div class="categories col-sm-3">
 		  {{#each categorized}}
-		  <div class="{{#ifeq @key ../selectedCategory}}selected{{/ifeq}}">{{@key}}</div>
+		  <a href="#" class="select-category {{#ifeq @key ../selectedCategory}}selected{{/ifeq}}">{{@key}}</a>
 		  {{/each}}
 		</div>
 		<div class="plugins col-sm-9">
-			<table>
+			Selected plugs: {{#each selectedPlugins}}<span>{{this}} <a hre="#" class="remove-plugin" data-name="{{this}}">&times;</a></span> &nbsp;{{/each}}
+			<div class="table-responsive">
+  				<table class="table table-striped">
 				<tbody>
 					{{#each selectedCategoryPlugins}}
 					<tr>
-						<td>{{plugin.title}}</td><td>{{{plugin.excerpt}}}</td>
+						<td><input type="checkbox" name="{{plugin.name}}" {{#in ../selectedPlugins plugin.name}}checked="checked"{{/in}}/><td>{{plugin.title}}</td><td>{{{plugin.excerpt}}}</td>
 					</tr>
 					{{/each}}
 				</tbody>
-			</table>
+				</table>
+			</div>
 		</div>
 	</div>
 </div>

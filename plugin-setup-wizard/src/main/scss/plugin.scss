@@ -25,7 +25,8 @@
 	
 	.modal-body {
 		background: linear-gradient(175deg, #f8f8f8 0%, rgba(255, 255, 255, 1) 22%, rgba(255, 255, 255, 0) 100%);
-	    overflow: auto;
+		overflow: hidden;
+	    overflow-y: auto;
 	    height: 100%;
 	}
 	
@@ -55,12 +56,31 @@
 	.plugin-selector {
 		.categories {
 			
-			> div {
+			.select-category {
 			    padding: .5em 0;
 			    border-bottom: 1px solid #eee;
+			    padding: .5em 0;
+			    border-bottom: 1px solid #eee;
+			    display: block;
+			    color: #444;
+			    text-decoration: none;
 			    
 			    &.selected {
-			    	background: red;
+		    	    background: #f8f8f8;
+				    border-bottom: 1px solid #ddd;
+				    font-weight: bold;
+				    position: relative;
+				    
+				    &:after {
+			    	    content: '\00BB';
+					    position: absolute;
+					    top: 0;
+					    left: 100%;
+					    color: #ddd;
+					    font-size: 23px;
+					    margin-left: 4px;
+					    font-weight: normal;
+				    }
 			    }
 		    }
 	    }

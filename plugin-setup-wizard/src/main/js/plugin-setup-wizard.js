@@ -4,26 +4,32 @@ var $bs = require('bootstrap-detached').getBootstrap();
 var wh = require('window-handle');
 var jenkins = require('./jenkins-common');
 
-var recommendedPlugins = ['git'];//, 'workflow-aggregator','github'];
+var recommendedPlugins = ['workflow-aggregator','github'];
 
 if(!('zq' in window)) {
 	window.zq = $;
 }
 
-// Include handlebars templates here
+// Include handlebars templates here - explicitly require them needed for hbsfy?
 var pluginSelectionContainer = require('./pluginSelectionContainer.hbs');
 var welcomePanel = require('./welcomePanel.hbs');
 var progressPanel = require('./progressPanel.hbs');
 var pluginSelectionPanel = require('./pluginSelectionPanel.hbs');
 var successPanel = require('./successPanel.hbs');
+var connectivityIssuePanel = require('./connectivityIssuePanel.hbs');
 var dialog = require('./dialog.hbs');
 
 var Handlebars = require('handlebars');
 Handlebars.registerHelper('ifeq', function(o1, o2, options) {
 	if(o1 == o2) { return options.fn(); }
 });
+
 Handlebars.registerHelper('ifneq', function(o1, o2, options) {
 	if(o1 != o2) { return options.fn(); }
+});
+
+Handlebars.registerHelper('in', function(arr, val, options) {
+	if(arr.indexOf(val) >= 0) { return options.fn(); }
 });
 
 // Setup the dialog
@@ -135,7 +141,7 @@ var createFirstRunDialog = function() {
 	var selectedCategory;
 	var categorizedPlugins = {};
 	var availablePlugins = [];
-	var selectedPlugins = [];
+	var selectedPlugins = recommendedPlugins.slice(0); // default to recommended plugins
 	
 	// Functions for custom plugin selection
 	var selectCategory = function(category) {
@@ -145,7 +151,8 @@ var createFirstRunDialog = function() {
 			available: availablePlugins,
 			selectedCategory: selectedCategory,
 			selectedCategoryPlugins: categorizedPlugins[selectedCategory],
-			selectedPlugins: selectedPlugins
+			selectedPlugins: selectedPlugins,
+			selectedPluginsText: selectedPlugins.join(', ')
 		});
 	};
 	
@@ -167,6 +174,26 @@ var createFirstRunDialog = function() {
 		});
 	};
 	
+
+	var remove = function(arr, item) {
+		for (var i = arr.length; i--;) {
+			if (arr[i] === item) {
+				arr.splice(i, 1);
+			}
+		}
+	};
+	var add = function(arr, item) {
+		arr.push(item);
+	};
+	$(document).on('change', '.plugins input[type=checkbox]', function() {
+		var $input = $(this);
+		if($input.is(':checked')) {
+			add(selectedPlugins, $input.attr('name'));
+		}
+		else {
+			remove(selectedPlugins, $input.attr('name'));
+		}
+	});
 	
 	var toggleInstallDetails = function() {
 		var $c = $('.install-console');
@@ -183,9 +210,10 @@ var createFirstRunDialog = function() {
 		'.install-custom': loadCustomPlugins,
 		'.install-home': function() { setPanel(welcomePanel); },
 		'.install-selected': function() { installPlugins(selectedPlugins); },
-		'.plugin-selector .categories > div': function() { selectCategory($(this).text()); },
+		'.select-category': function() { selectCategory($(this).text()); },
 		'.toggle-install-details': toggleInstallDetails,
-		'.install-done': finishInstallation
+		'.install-done': finishInstallation,
+		'.remove-plugin': function() { console.log('remove: ' + $(this).attr('data-name')); remove(selectedPlugins, $(this).attr('data-name')); $(this).parent().remove(); }
 	};
 	
 	var bindClickHandler = function(cls, action) {
@@ -202,10 +230,29 @@ var createFirstRunDialog = function() {
 	// by default, we'll show the welcome screen
 	setPanel(welcomePanel);
 	
+	var testConnectivity = function() {
+		jenkins.get('/updateCenter/connectionStatus?siteId=default', function(response) {
+			var uncheckedStatuses = ['CHECKING', 'UNCHECKED'];
+			if(uncheckedStatuses.indexOf(response.data.updatesite) >= 0  || uncheckedStatuses.indexOf(response.data.internet) >= 0) {
+				setTimeout(testConnectivity, 500);
+			}
+			else {
+				if(response.status != 'ok' || response.data.updatesite != 'OK' || response.data.internet != 'OK') {
+					setPanel(connectivityIssuePanel);
+				}
+			}
+		});
+	};
+	testConnectivity();
+	
 	// check for updates when first loaded...
-	jenkins.get('/updateCenter/api/json?tree=jobs[name,status[*]]', function(data) {
-		if(data.jobs.length > 0) {
-			showInstallProgress();
+	jenkins.get('/updateCenter/api/json?tree=jobs[name,type,status[*]]', function(data) {
+		// check for install jobs
+		for(var i = 0; i < data.jobs.length; i++) {
+			if(data.jobs[i].type != 'ConnectionCheckJob') {
+				showInstallProgress();
+				break;
+			}
 		}
 	});
 };
