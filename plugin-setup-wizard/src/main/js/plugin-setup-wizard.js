@@ -4,7 +4,7 @@ var $bs = require('bootstrap-detached').getBootstrap();
 var wh = require('window-handle');
 var jenkins = require('./jenkins-common');
 
-var recommendedPlugins = ['git', 'workflow-aggregator','github'];
+var recommendedPlugins = ['git'];//, 'workflow-aggregator','github'];
 
 if(!('zq' in window)) {
 	window.zq = $;
@@ -68,15 +68,16 @@ var createFirstRunDialog = function() {
 		// update center for status -- replace this with something cooler
 		//jenkins.go('/updateCenter');
 		var updateStatus = function() {
-			jenkins.get('/updateCenter/api/json?tree=jobs[name,status[*]]', function(data) {
+			jenkins.get('/updateCenter/api/json?tree=jobs[name,status[*],errorMessage]', function(data) {
+				var i, j;
 				var complete = 0;
 				var total = 0;
 				var jobs = data.jobs;
-				for(var i = 0; i < jobs.length; i++) {
-					var j = jobs[i];
+				for(i = 0; i < jobs.length; i++) {
+					j = jobs[i];
 					if('status' in j) {
 						total++;
-						if(/.*Success.*/.test(j.status.type)) { //jobs[i].status.success) {
+						if(/.*Success.*/.test(j.status.type)||/.*Fail.*/.test(j.status.type)) { //jobs[i].status.success) {
 							complete++;
 						}
 					}
@@ -85,11 +86,11 @@ var createFirstRunDialog = function() {
 				$('.progress-bar').css({width: ((100.0 * complete)/total) + '%'});
 				
 				var $c = $('.install-console');
-				if($c.is(':visible')) {
+				{
 					$c = $('.install-text');
 					$c.children().remove();
-					for(var i = 0; i < jobs.length; i++) {
-						var j = jobs[i];
+					for(i = 0; i < jobs.length; i++) {
+						j = jobs[i];
 						if('status' in j) {
 							if(/.*Success.*/.test(j.status.type)) {
 								$c.append('<div>'+j.name+'</div>');
@@ -97,9 +98,14 @@ var createFirstRunDialog = function() {
 							else if(/.*Install.*/.test(j.status.type)) {
 								$c.append('<div>'+j.name+'</div>');
 							}
+							else if(/.*Fail.*/.test(j.status.type)) {
+								$c.append('<div>'+j.name+' -- '+j.errorMessage+'</div>');
+							}
 						}
 					}
-					$c[0].scrollTop = $c[0].scrollHeight;
+					if($c.is(':visible')) {
+						$c[0].scrollTop = $c[0].scrollHeight;
+					}
 				}
 				
 				if(total === 0 || complete < total) {
@@ -108,7 +114,7 @@ var createFirstRunDialog = function() {
 				}
 				else {
 					$('.progress-bar').css({width: '100%'});
-					//jenkins.get('/saveLastExecVersion');
+					jenkins.get('/saveLastExecVersion');
 					setPanel(successPanel);
 				}
 			});
@@ -122,7 +128,7 @@ var createFirstRunDialog = function() {
 	 * Called to complete the installation
 	 */
 	var finishInstallation = function() {
-		//jenkins.get('/saveLastExecVersion');
+		jenkins.get('/saveLastExecVersion');
 		jenkins.go('/');
 	};
 	
