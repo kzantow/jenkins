@@ -1,10 +1,13 @@
 // Initialize all modules by requiring them. Also makes sure they get bundled (see gulpfile.js).
 var $ = require('jquery-detached').getJQuery();
 var $bs = require('bootstrap-detached').getBootstrap();
+var wh = require('window-handle');
 var jenkins = require('./jenkins-common');
 
-if(!('jQueryzz' in window)) {	
-	window.jQueryzz = $;
+var recommendedPlugins = ['git', 'workflow-aggregator','github'];
+
+if(!('zq' in window)) {
+	window.zq = $;
 }
 
 // Include handlebars templates here
@@ -12,18 +15,28 @@ var pluginSelectionContainer = require('./pluginSelectionContainer.hbs');
 var welcomePanel = require('./welcomePanel.hbs');
 var progressPanel = require('./progressPanel.hbs');
 var pluginSelectionPanel = require('./pluginSelectionPanel.hbs');
+var successPanel = require('./successPanel.hbs');
 var dialog = require('./dialog.hbs');
+
+var Handlebars = require('handlebars');
+Handlebars.registerHelper('ifeq', function(o1, o2, options) {
+	if(o1 == o2) { return options.fn(); }
+});
+Handlebars.registerHelper('ifneq', function(o1, o2, options) {
+	if(o1 != o2) { return options.fn(); }
+});
 
 // Setup the dialog
 var createFirstRunDialog = function() {
-	var $wizard = $('.plugin-setup-wizard');
+	var $wizard = $('<div class="plugin-setup-wizard bootstrap-3"></div>');
+	$wizard.appendTo('body');
 	$wizard.append(dialog);
 	var $container = $wizard.find('.modal-content');
 	
-	var setPanel = function(panel) {
+	var setPanel = function(panel, data) {
 		var append = function() {
 			$wizard.attr('data-panel', panel.name);
-			$container.append(panel);
+			$container.append(panel(data));
 		};
 		
 		var $modalBody = $container.find('.modal-body');
@@ -45,7 +58,7 @@ var createFirstRunDialog = function() {
 	};
 	
 	var installRecommendedPlugins = function() {
-		installPlugins(['workflow-aggregator','github']);
+		installPlugins(recommendedPlugins);
 	};
 	
 	// Define actions
@@ -60,9 +73,10 @@ var createFirstRunDialog = function() {
 				var total = 0;
 				var jobs = data.jobs;
 				for(var i = 0; i < jobs.length; i++) {
-					if('name' in jobs[i]) {
+					var j = jobs[i];
+					if('status' in j) {
 						total++;
-						if(jobs[i].status.success) {
+						if(/.*Success.*/.test(j.status.type)) { //jobs[i].status.success) {
 							complete++;
 						}
 					}
@@ -70,20 +84,117 @@ var createFirstRunDialog = function() {
 				
 				$('.progress-bar').css({width: ((100.0 * complete)/total) + '%'});
 				
-				if(complete < total) {
+				var $c = $('.install-console');
+				if($c.is(':visible')) {
+					$c = $('.install-text');
+					$c.children().remove();
+					for(var i = 0; i < jobs.length; i++) {
+						var j = jobs[i];
+						if('status' in j) {
+							if(/.*Success.*/.test(j.status.type)) {
+								$c.append('<div>'+j.name+'</div>');
+							}
+							else if(/.*Install.*/.test(j.status.type)) {
+								$c.append('<div>'+j.name+'</div>');
+							}
+						}
+					}
+					$c[0].scrollTop = $c[0].scrollHeight;
+				}
+				
+				if(total === 0 || complete < total) {
 					// wait a sec
-					setTimeout(updateStatus, 1000);
+					setTimeout(updateStatus, 250);
 				}
 				else {
-					jenkins.get('/saveLastExecVersion');
-					jenkins.go('/');
+					$('.progress-bar').css({width: '100%'});
+					//jenkins.get('/saveLastExecVersion');
+					setPanel(successPanel);
 				}
 			});
 		};
 		
 		// kick it off
-		updateStatus();
+		setTimeout(updateStatus, 250);
 	};
+	
+	/**
+	 * Called to complete the installation
+	 */
+	var finishInstallation = function() {
+		//jenkins.get('/saveLastExecVersion');
+		jenkins.go('/');
+	};
+	
+	var selectedCategory;
+	var categorizedPlugins = {};
+	var availablePlugins = [];
+	var selectedPlugins = [];
+	
+	// Functions for custom plugin selection
+	var selectCategory = function(category) {
+		selectedCategory = category;
+		setPanel(pluginSelectionPanel, {
+			categorized: categorizedPlugins,
+			available: availablePlugins,
+			selectedCategory: selectedCategory,
+			selectedCategoryPlugins: categorizedPlugins[selectedCategory],
+			selectedPlugins: selectedPlugins
+		});
+	};
+	
+	var loadCustomPlugins = function() {
+		jenkins.get('/updateCenter/api/json?tree=categorizedAvailables[*,*[*]]', function(data) {
+			availablePlugins = data.categorizedAvailables;
+			for(var i = 0; i < availablePlugins.length; i++) {
+				var plug = availablePlugins[i];
+				var plugs = categorizedPlugins[plug.category];
+				if(!plugs) {
+					categorizedPlugins[plug.category] = plugs = [];
+				}
+				plugs.push(plug);
+			}
+			setPanel(pluginSelectionPanel, {
+				categorized: categorizedPlugins,
+				available: availablePlugins
+			});
+		});
+	};
+	
+	
+	var toggleInstallDetails = function() {
+		var $c = $('.install-console');
+		if($c.is(':visible')) {
+			$c.slideUp();
+		}
+		else {
+			$c.slideDown();
+		}
+	};
+	
+	var actions = {
+		'.install-recommended': installRecommendedPlugins,
+		'.install-custom': loadCustomPlugins,
+		'.install-home': function() { setPanel(welcomePanel); },
+		'.install-selected': function() { installPlugins(selectedPlugins); },
+		'.plugin-selector .categories > div': function() { selectCategory($(this).text()); },
+		'.toggle-install-details': toggleInstallDetails,
+		'.install-done': finishInstallation
+	};
+	
+	var bindClickHandler = function(cls, action) {
+		$wizard.on('click', cls, function(e) {
+			action.apply(this, arguments);
+			e.preventDefault();
+		});
+	};
+	
+	for(var cls in actions) {
+		bindClickHandler(cls, actions[cls]);
+	}
+	
+	// by default, we'll show the welcome screen
+	setPanel(welcomePanel);
 	
 	// check for updates when first loaded...
 	jenkins.get('/updateCenter/api/json?tree=jobs[name,status[*]]', function(data) {
@@ -91,33 +202,6 @@ var createFirstRunDialog = function() {
 			showInstallProgress();
 		}
 	});
-	
-	// Functions for custom plugin selection
-	var installCustomPlugins = function() {
-		jenkins.get('/updateCenter/api/json?tree=categorizedAvailables[*,*[*]]', function(data) {
-			setPanel(pluginSelectionPanel({ plugins: data.categorizedAvailables }));
-		});
-	};
-	
-	var actions = {
-		'.install-recommended': installRecommendedPlugins,
-		'.install-custom': installCustomPlugins,
-		'.install-home': function() { setPanel(welcomePanel); }
-	};
-	
-	var bindWizardHandler = function(cls, action) {
-		$wizard.on('click', cls, function(e) {
-			action(e);
-			e.preventDefault();
-		});
-	};
-	
-	for(var cls in actions) {
-		bindWizardHandler(cls, actions[cls]);
-	}
-	
-	// by default, we'll show the welcome screen
-	setPanel(welcomePanel);
 };
 
 // go!
