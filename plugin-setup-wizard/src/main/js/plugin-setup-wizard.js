@@ -58,8 +58,15 @@ var createFirstRunDialog = function() {
 		}
 	};
 
+	var installId;
 	var installPlugins = function(plugins) {
-		jenkins.get('/pluginManager/install?dynamicLoad=true&' + plugins.map(function(v){ return 'plugin.'+v+'=true'; }).join('&'));
+		//jenkins.get('/pluginManager/install?dynamicLoad=true&' + plugins.map(function(v){ return 'plugin.'+v+'=true'; }).join('&'));
+		jenkins.post('/pluginManager/installPlugins', { dynamicLoad: true, plugins: plugins }, function(data) {
+			if(data.status != 'ok') {
+				// error!
+			}
+			installId = data.data.correlationId;
+		});
 		showInstallProgress();
 	};
 	
@@ -71,9 +78,56 @@ var createFirstRunDialog = function() {
 	var showInstallProgress = function() {
 		setPanel(progressPanel);
 	
-		// update center for status -- replace this with something cooler
-		//jenkins.go('/updateCenter');
-		var updateStatus = function() {
+		var updateStatus = installId ?
+		function() {
+			jenkins.get('/updateCenter/installStatus?correlationId='+installId, function(data) {
+				var i, j;
+				var complete = 0;
+				var total = 0;
+				var jobs = data.data;
+				for(i = 0; i < jobs.length; i++) {
+					j = jobs[i];
+					total++;
+					if(/.*Success.*/.test(j.installStatus)||/.*Fail.*/.test(j.installStatus)) {
+						complete++;
+					}
+				}
+				
+				$('.progress-bar').css({width: ((100.0 * complete)/total) + '%'});
+				
+				var $c = $('.install-console');
+				{
+					$c = $('.install-text');
+					$c.children().remove();
+					for(i = 0; i < jobs.length; i++) {
+						j = jobs[i];
+						if(/.*Success.*/.test(j.installStatus)) {
+							$c.append('<div>'+j.title+'</div>');
+						}
+						else if(/.*Install.*/.test(j.installStatus)) {
+							$c.append('<div>'+j.title+'</div>');
+						}
+						else if(/.*Fail.*/.test(j.installStatus)) {
+							$c.append('<div>'+j.title+' -- FAILED '+'</div>');
+						}
+					}
+					if($c.is(':visible')) {
+						$c[0].scrollTop = $c[0].scrollHeight;
+					}
+				}
+				
+				if(total === 0 || complete < total) {
+					// wait a sec
+					setTimeout(updateStatus, 250);
+				}
+				else {
+					$('.progress-bar').css({width: '100%'});
+					jenkins.get('/saveLastExecVersion');
+					setPanel(successPanel);
+				}
+			});
+		}
+		: function() {
 			jenkins.get('/updateCenter/api/json?tree=jobs[name,status[*],errorMessage]', function(data) {
 				var i, j;
 				var complete = 0;
