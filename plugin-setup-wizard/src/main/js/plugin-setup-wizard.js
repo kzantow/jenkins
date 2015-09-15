@@ -2,12 +2,16 @@
 var $ = require('jquery-detached').getJQuery();
 var $bs = require('bootstrap-detached').getBootstrap();
 var wh = require('window-handle');
+var globify = require('require-globify');
 var jenkins = require('./jenkins-common');
 
 var recommendedPlugins = ['workflow-aggregator','github'];
 
-if(!('zq' in window)) {
-	window.zq = $;
+//just expand to multiple require calls, one for each matched file
+//Hack to compile Glob files. Don´t call this function!
+function glob_everything() {
+	require(__dirname + '/*.js', {mode: 'expand'});
+	require(__dirname + '/*.hbs', {mode: 'expand'});
 }
 
 // Include handlebars templates here - explicitly require them needed for hbsfy?
@@ -239,7 +243,8 @@ var createFirstRunDialog = function() {
 	var add = function(arr, item) {
 		arr.push(item);
 	};
-	$(document).on('change', '.plugins input[type=checkbox]', function() {
+	
+	$wizard.on('change', '.plugins input[type=checkbox]', function() {
 		var $input = $(this);
 		if($input.is(':checked')) {
 			add(selectedPlugins, $input.attr('name'));

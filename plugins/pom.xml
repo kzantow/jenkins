@@ -469,7 +469,7 @@
 					<configuration>
 						<nodeVersion>${nodejs.version}</nodeVersion>
 						<npmVersion>${npm.version}</npmVersion>
-						<outputdir>${project.build.directory}/generated-sources/js-module</outputdir>
+						<outputdir>target/generated-adjuncts</outputdir>
 					</configuration>
 	
 					<executions>
@@ -515,35 +515,12 @@
 								<goal>gulp</goal>
 							</goals>
 							<configuration>
-								<arguments>test-all</arguments>
+								<arguments>bundle test-all</arguments>
 							</configuration>
 						</execution>
 	
 					</executions>
 				</plugin>
-	
-			    <plugin>
-					<artifactId>maven-resources-plugin</artifactId>
-					<version>2.7</version>
-					<executions>
-						<execution>
-							<id>copy-frontend-resources</id>
-							<phase>generate-sources</phase>
-							<goals>
-								<goal>copy-resources</goal>
-							</goals>
-							<configuration>
-								<outputDirectory>${project.build.outputDirectory}</outputDirectory>
-								<resources>
-									<resource>
-										<directory>${basedir}/target/generated-sources/js-module</directory>
-										<filtering>false</filtering>
-									</resource>
-								</resources>
-							</configuration>
-						</execution>
-					</executions>
-		    	</plugin>
 			</plugins>
 		</build>
 	</profile>
