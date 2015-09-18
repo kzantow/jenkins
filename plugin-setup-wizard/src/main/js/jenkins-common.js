@@ -47,12 +47,16 @@ var stringify = function(o) {
 	}
 };
 
-// redirect
+/**
+ * redirect
+ */
 exports.go = function(url) {
     wh.getWindow().location.replace(baseUrl() + url);
 };
 
-// Jenkins ajax callback
+/**
+ * Jenkins AJAX GET callback
+ */
 exports.get = function(url, success) {
 	$.ajax({
 		url: baseUrl() + url,
@@ -61,7 +65,9 @@ exports.get = function(url, success) {
 	});
 };
 
-// Jenkins POST callback, expects data to be JSON format for our purposes.
+/**
+ * Jenkins AJAX POST callback, formats data as a JSON object post (note: works around prototype.js ugliness using stringify() above)
+ */
 exports.post = function(url, data, success) {
     $.ajax({
 		url: baseUrl() + url,
@@ -70,4 +76,90 @@ exports.post = function(url, data, success) {
 	    contentType: "application/json",
 		success: success
 	});
+};
+
+/**
+ * simple function for defining a UI region, which has the ability to update itself.
+ * usage:
+ * new jenkins.part({ ... stuff })
+ * new jenkins.part('template',{}) // for no backing javacsript
+ */
+exports.part = function() {
+	var fn = arguments[0];
+	var o = arguments[1];
+	
+	this.template = require(__dirname+'/'+fn+'.hbs');
+	
+	this.$parent = undefined;
+	this.$handle = undefined;
+	
+	this.render = function() {
+		var html = this.template(this);
+		if(!this.$handle) {
+			this.$handle = $(html);
+			this.$handle.appendTo($parent);
+		}
+		else {
+			var $newHandle = $(html);
+			this.$handle.replaceWith($newHandle);
+			$handle = $newHandle;
+		}
+	};
+	
+	this.attach = function($parent) {
+		this.$parent = $parent;
+	};
+	
+	// take all the things, make sure to re-bind methods
+	for(var k in o) {
+		var d = o[k];
+		if(d instanceof Function || typeof(d) == 'function') {
+			d = bind(this, d);
+		}
+		this[k] = d;
+	}
+	
+	if('init' in this) { // call any initialization function present
+		this.init();
+	}
+};
+
+/**
+ *  handlebars setup, this does not seem to actually work or get called by the require() of this file, so have to explicitly call it
+ */
+exports.hbs = function() {
+	var Handlebars = require('handlebars');
+	Handlebars.registerHelper('ifeq', function(o1, o2, options) {
+		if(o1 == o2) { return options.fn(); }
+	});
+
+	Handlebars.registerHelper('ifneq', function(o1, o2, options) {
+		if(o1 != o2) { return options.fn(); }
+	});
+
+	Handlebars.registerHelper('in-array', function(arr, val, options) {
+		if(arr.indexOf(val) >= 0) { return options.fn(); }
+	});
+
+	Handlebars.registerHelper('id', function(str) {
+		return (''+str).replace(/\W+/g, '_');
+	});
+
+	Handlebars.registerHelper('include', function() {
+		var scriptName = arguments[0];
+		var script = require('./'+scriptName+'.js');
+		var template = require('./'+scriptName+'.hbs');
+		
+	});
+	
+	return Handlebars;
+};
+
+/**
+ * simple scoping function
+ */
+exports.bind = function(obj, fn) {
+	return function() {
+		return fn.apply(obj, arguments);
+	};
 };

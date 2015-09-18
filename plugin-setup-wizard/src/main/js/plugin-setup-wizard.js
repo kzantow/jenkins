@@ -5,7 +5,48 @@ var wh = require('window-handle');
 var globify = require('require-globify');
 var jenkins = require('./jenkins-common');
 
-var recommendedPlugins = ['workflow-aggregator','github'];
+wh.getWindow().zq = $;
+
+var Handlebars = jenkins.hbs(); // sets up utility functions
+Handlebars.registerHelper('pluginCount', function(cat) {
+	var plugs = categorizedPlugins[cat];
+	var tot = 0;
+	var cnt = 0;
+	for(var i = 0; i < plugs.length; i++) {
+		var plug = plugs[i];
+		if(plug.category == cat) {
+			tot++;
+			if(selectedPlugins.indexOf(plug.plugin.name) >= 0) {
+				cnt++;
+			}
+		}
+	}
+	return '(' + cnt + '/' + tot + ')';
+});
+
+Handlebars.registerHelper('totalPluginCount', function() {
+	var tot = 0;
+	var cnt = 0;
+	for(var i = 0; i < installData.availablePlugins.length; i++) {
+		var a = installData.availablePlugins[i];
+		for(var c = 0; c < a.plugins.length; c++) {
+			var plug = a.plugins[c];
+			tot++;
+			if(selectedPlugins.indexOf(plug.name) >= 0) {
+				cnt++;
+			}
+		}
+	}
+	return '(' + cnt + '/' + tot + ')';
+});
+
+Handlebars.registerHelper('inSelectedPlugins', function(val, options) {
+	if(selectedPlugins.indexOf(val) >= 0) {
+		return options.fn();
+	}
+});
+
+var installData;
 
 //just expand to multiple require calls, one for each matched file
 //Hack to compile Glob files. Don´t call this function!
@@ -14,27 +55,27 @@ function glob_everything() {
 	require(__dirname + '/*.hbs', {mode: 'expand'});
 }
 
+var getInstallData = function() {
+	installData = require('./recommendedPlugins.js');
+};
+
+getInstallData();
+
 // Include handlebars templates here - explicitly require them needed for hbsfy?
 var pluginSelectionContainer = require('./pluginSelectionContainer.hbs');
 var welcomePanel = require('./welcomePanel.hbs');
 var progressPanel = require('./progressPanel.hbs');
 var pluginSelectionPanel = require('./pluginSelectionPanel.hbs');
 var successPanel = require('./successPanel.hbs');
-var connectivityIssuePanel = require('./connectivityIssuePanel.hbs');
+var offlinePanel = require('./offlinePanel.hbs');
 var dialog = require('./dialog.hbs');
 
-var Handlebars = require('handlebars');
-Handlebars.registerHelper('ifeq', function(o1, o2, options) {
-	if(o1 == o2) { return options.fn(); }
-});
-
-Handlebars.registerHelper('ifneq', function(o1, o2, options) {
-	if(o1 != o2) { return options.fn(); }
-});
-
-Handlebars.registerHelper('in', function(arr, val, options) {
-	if(arr.indexOf(val) >= 0) { return options.fn(); }
-});
+var categories = [];
+var selectedCategory;
+var availablePlugins = {};
+var categorizedPlugins = {};
+var recommendedPlugins = [];
+var selectedPlugins = installData.defaultPlugins.slice(0); // default the set of plugins, this is just names
 
 // Setup the dialog
 var createFirstRunDialog = function() {
@@ -43,10 +84,13 @@ var createFirstRunDialog = function() {
 	$wizard.append(dialog);
 	var $container = $wizard.find('.modal-content');
 	
-	var setPanel = function(panel, data) {
+	var setPanel = function(panel, data, oncomplete) {
 		var append = function() {
 			$wizard.attr('data-panel', panel.name);
 			$container.append(panel(data));
+			if(oncomplete) {
+				oncomplete();
+			}
 		};
 		
 		var $modalBody = $container.find('.modal-body');
@@ -61,7 +105,6 @@ var createFirstRunDialog = function() {
 			append();
 		}
 	};
-
 	var installId;
 	var installPlugins = function(plugins) {
 		//jenkins.get('/pluginManager/install?dynamicLoad=true&' + plugins.map(function(v){ return 'plugin.'+v+'=true'; }).join('&'));
@@ -74,8 +117,8 @@ var createFirstRunDialog = function() {
 		showInstallProgress();
 	};
 	
-	var installRecommendedPlugins = function() {
-		installPlugins(recommendedPlugins);
+	var installDefaultPlugins = function() {
+		installPlugins(installData.defaultPlugins);
 	};
 	
 	// Define actions
@@ -196,42 +239,58 @@ var createFirstRunDialog = function() {
 		jenkins.go('/');
 	};
 	
-	var selectedCategory;
-	var categorizedPlugins = {};
-	var availablePlugins = [];
-	var selectedPlugins = recommendedPlugins.slice(0); // default to recommended plugins
-	
-	// Functions for custom plugin selection
-	var selectCategory = function(category) {
-		selectedCategory = category;
-		setPanel(pluginSelectionPanel, {
-			categorized: categorizedPlugins,
-			available: availablePlugins,
-			selectedCategory: selectedCategory,
-			selectedCategoryPlugins: categorizedPlugins[selectedCategory],
-			selectedPlugins: selectedPlugins,
-			selectedPluginsText: selectedPlugins.join(', ')
+	var loadPluginData = function(oncomplete) {
+		jenkins.get('/updateCenter/api/json?tree=availables[*,*[*]]', function(data) {
+			var a = data.availables;
+			for(var i = 0; i < a.length; i++) {
+				var plug = a[i];
+				availablePlugins[plug.name] = plug;
+			}
+			oncomplete();
 		});
 	};
 	
-	var loadCustomPlugins = function() {
-		jenkins.get('/updateCenter/api/json?tree=categorizedAvailables[*,*[*]]', function(data) {
-			availablePlugins = data.categorizedAvailables;
-			for(var i = 0; i < availablePlugins.length; i++) {
-				var plug = availablePlugins[i];
-				var plugs = categorizedPlugins[plug.category];
-				if(!plugs) {
-					categorizedPlugins[plug.category] = plugs = [];
+	var loadCustomPluginPanel = function() {
+		loadPluginData(function() {
+			for(var i = 0; i < installData.availablePlugins.length; i++) {
+				var a = installData.availablePlugins[i];
+				categories.push(a.category);
+				var plugs = categorizedPlugins[a.category] = [];
+				for(var c = 0; c < a.plugins.length; c++) {
+					var plugInfo = a.plugins[c];
+					var plug = availablePlugins[plugInfo.name];
+					if(!plug) {
+						console.log('Invalid plugin: ' + plugInfo.name);
+						plug = {
+							name: plugInfo.name,
+							title: plugInfo.name
+						};
+					}
+					recommendedPlugins.push(plug.name);
+					plugs.push({
+						category: a.category,
+						plugin: $.extend(plug, {
+							usage: plugInfo.usage,
+							title: plugInfo.title ? plugInfo.title : plug.title,
+							excerpt: plugInfo.excerpt ? plugInfo.excerpt : plug.excerpt,
+							updated: new Date(plug.buildDate)
+						})
+					});
 				}
-				plugs.push(plug);
 			}
-			setPanel(pluginSelectionPanel, {
-				categorized: categorizedPlugins,
-				available: availablePlugins
+			setPanel(pluginSelectionPanel, pluginSelectionPanelData(), function() {
+				$bs('.plugin-selector .plugin-list').scrollspy({ target: '.plugin-selector .categories' });
 			});
 		});
 	};
 	
+	var pluginSelectionPanelData = function() {
+		return {
+			categories: categories,
+			categorizedPlugins: categorizedPlugins,
+			selectedPlugins: selectedPlugins
+		};
+	};
 
 	var remove = function(arr, item) {
 		for (var i = arr.length; i--;) {
@@ -244,7 +303,20 @@ var createFirstRunDialog = function() {
 		arr.push(item);
 	};
 	
-	$wizard.on('change', '.plugins input[type=checkbox]', function() {
+	var refreshPluginSelectionPanel = function() {
+		var html = pluginSelectionPanel(pluginSelectionPanelData());
+		
+		var $upd = $(html);
+		$upd.find('*[id]').each(function() {
+			var $el = $(this);
+			$('#'+$el.attr('id')).replaceWith($el);
+		});
+		if(lastSearch !== '') {
+			searchForPlugins(lastSearch, false);
+		}
+	};
+	
+	$wizard.on('change', '.plugin-list input[type=checkbox]', function() {
 		var $input = $(this);
 		if($input.is(':checked')) {
 			add(selectedPlugins, $input.attr('name'));
@@ -252,8 +324,82 @@ var createFirstRunDialog = function() {
 		else {
 			remove(selectedPlugins, $input.attr('name'));
 		}
+		
+		refreshPluginSelectionPanel();
 	});
 	
+    var walk = function(elements, element, text, xform) {
+        var i, child, n= element.childNodes.length;
+        for (i = 0; i<n; i++) {
+            child = element.childNodes[i];
+            if (child.nodeType===3 && xform(child.data).indexOf(text)!==-1) {
+                elements.push(element);
+                break;
+            }
+        }
+        for (i = 0; i<n; i++) {
+            child = element.childNodes[i];
+            if (child.nodeType===1)
+                walk(elements, child, text, xform);
+        }
+    };
+    
+	var findElementsWithText = function(ancestor, text, xform) {
+	    var elements= [];
+	    walk(elements, ancestor, text, xform ? xform : function(d){ return d; });
+	    return elements;
+	};
+	
+	var findIndex = 0;
+	var lastSearch = '';
+	var scrollPlugin = function($pl, matches, term) {
+		if(matches.length > 0) {
+			if(lastSearch != term) {
+				lastSearch = term;
+				findIndex = 0;
+			}
+			else {
+				findIndex = (findIndex+1) % matches.length;
+			}
+			var $el = $(matches[findIndex]);
+			$el = $el.parents('label:first'); // scroll to the block
+			//setTimeout(function() { // wait for css transitions to finish
+				var pos = $pl.scrollTop() + $el.position().top;
+				console.log('scroll to: ' + new Error().stack);
+				$pl.animate({
+					scrollTop: pos
+				}, 100);
+			//}, 1);
+		}
+	};
+	var searchForPlugins = function(text, scroll) {
+		var $pl = $('.plugin-list');
+		var $containers = $('.plugin-list label');
+		$containers.removeClass('match');
+		if(text.length > 1) {
+			$pl.addClass('searching');
+			var matches = findElementsWithText($pl[0], text.toLowerCase(), function(d) { return d.toLowerCase(); });
+			$(matches).parents('label').addClass('match');
+			if(scroll) {
+				scrollPlugin($pl, matches, text);
+			}
+		}
+		else {
+			findIndex = 0;
+			$pl.removeClass('searching');
+			$pl.scrollTop(0);
+			lastSearch = '';
+		}
+	};
+	$wizard.on('keyup change', '.plugin-select-controls input[name=searchbox]', function(e) {
+		var val = $(this).val();
+		searchForPlugins(val, true);
+	});
+	$wizard.on('click', '.clear-search', function() {
+		$('input[name=searchbox]').val('');
+		lastSearch = '';
+		searchForPlugins(lastSearch, false);
+	});
 	var toggleInstallDetails = function() {
 		var $c = $('.install-console');
 		if($c.is(':visible')) {
@@ -265,14 +411,15 @@ var createFirstRunDialog = function() {
 	};
 	
 	var actions = {
-		'.install-recommended': installRecommendedPlugins,
-		'.install-custom': loadCustomPlugins,
+		'.install-recommended': installDefaultPlugins,
+		'.install-custom': loadCustomPluginPanel,
 		'.install-home': function() { setPanel(welcomePanel); },
 		'.install-selected': function() { installPlugins(selectedPlugins); },
-		'.select-category': function() { selectCategory($(this).text()); },
 		'.toggle-install-details': toggleInstallDetails,
 		'.install-done': finishInstallation,
-		'.remove-plugin': function() { console.log('remove: ' + $(this).attr('data-name')); remove(selectedPlugins, $(this).attr('data-name')); $(this).parent().remove(); }
+		'.plugin-select-all': function() { selectedPlugins = recommendedPlugins.slice(0); refreshPluginSelectionPanel(); },
+		'.plugin-select-none': function() { selectedPlugins = []; refreshPluginSelectionPanel(); },
+		'.plugin-select-recommended': function() { selectedPlugins = installData.defaultPlugins.slice(0); refreshPluginSelectionPanel(); }
 	};
 	
 	var bindClickHandler = function(cls, action) {
@@ -297,7 +444,7 @@ var createFirstRunDialog = function() {
 			}
 			else {
 				if(response.status != 'ok' || response.data.updatesite != 'OK' || response.data.internet != 'OK') {
-					setPanel(connectivityIssuePanel);
+					setPanel(offlinePanel);
 				}
 			}
 		});
