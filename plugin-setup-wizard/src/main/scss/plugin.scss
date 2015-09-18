@@ -65,7 +65,6 @@
 			overflow: hidden;
 			padding-top: 3em;
 			position: relative;
-			padding-left: 0;
 			
 			.plugin-actions {
 				a {
@@ -110,7 +109,7 @@
 			    right: 0;
 			    left: 0;
 			    height: 2em;
-			    padding: 0 6px;
+			    padding: 0 10px;
 			    height: 34px;
 			    z-index: 100;
 			}
@@ -118,6 +117,8 @@
 			.plugin-list {
 				position: relative;
 				padding: 10px;
+			    margin: 0 -15px;
+				    
 				@media screen and (min-width: 960px) {
 					max-height: 100%;
 				}
@@ -138,8 +139,8 @@
 					    &.match {
 				    	    display: block;
 						    background: #d9edf7;
-						    margin: 8px -10px;
-						    padding: 8px 28px;
+						    margin: 4px -7px;
+							padding: 6px 0 6px 26px;
 						    border-radius: 2px;
 						    border: 1px solid #bce8f1;
 						    color: #31708f;
@@ -161,19 +162,20 @@
 				
 				label {
 				    font-weight: normal;
-				    padding: 5px 15px;
+				    padding: 7px 2px 7px 27px;
 				    position: relative;
 				    display: block;
 				    cursor: pointer;
-				    margin: 4px 0;
+				    margin: 4px -7px;
+
 				    
 				    &.selected {
-					    background: #dff0d8;
-					    margin: 6px -10px;
-					    padding: 6px 26px;
-					    border-radius: 2px;
-					    border: 1px solid #C2E0A9;//#d6e9c6;
-					    color: #3c763d;
+				        background: #dff0d8;
+						margin: 4px -7px;
+						padding: 6px 0 6px 26px;
+						border-radius: 2px;
+						border: 1px solid #C2E0A9;
+						color: #3c763d;
 				    }
 						    
 				    .title {

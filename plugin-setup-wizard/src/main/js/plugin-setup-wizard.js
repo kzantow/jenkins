@@ -292,14 +292,14 @@ var createFirstRunDialog = function() {
 		};
 	};
 
-	var remove = function(arr, item) {
+	var removePlugin = function(arr, item) {
 		for (var i = arr.length; i--;) {
 			if (arr[i] === item) {
 				arr.splice(i, 1);
 			}
 		}
 	};
-	var add = function(arr, item) {
+	var addPlugin = function(arr, item) {
 		arr.push(item);
 	};
 	
@@ -319,10 +319,10 @@ var createFirstRunDialog = function() {
 	$wizard.on('change', '.plugin-list input[type=checkbox]', function() {
 		var $input = $(this);
 		if($input.is(':checked')) {
-			add(selectedPlugins, $input.attr('name'));
+			addPlugin(selectedPlugins, $input.attr('name'));
 		}
 		else {
-			remove(selectedPlugins, $input.attr('name'));
+			removePlugin(selectedPlugins, $input.attr('name'));
 		}
 		
 		refreshPluginSelectionPanel();
@@ -355,7 +355,6 @@ var createFirstRunDialog = function() {
 	var scrollPlugin = function($pl, matches, term) {
 		if(matches.length > 0) {
 			if(lastSearch != term) {
-				lastSearch = term;
 				findIndex = 0;
 			}
 			else {
@@ -363,24 +362,30 @@ var createFirstRunDialog = function() {
 			}
 			var $el = $(matches[findIndex]);
 			$el = $el.parents('label:first'); // scroll to the block
-			//setTimeout(function() { // wait for css transitions to finish
+			var pos = $pl.scrollTop() + $el.position().top;
+			//console.log('scroll to: ' + new Error().stack);
+			$pl.stop(true).animate({
+				scrollTop: pos
+			}, 100);
+			setTimeout(function() { // wait for css transitions to finish
 				var pos = $pl.scrollTop() + $el.position().top;
-				console.log('scroll to: ' + new Error().stack);
-				$pl.animate({
+				$pl.stop(true).animate({
 					scrollTop: pos
-				}, 100);
-			//}, 1);
+				}, 50);
+			}, 50);
 		}
 	};
 	var searchForPlugins = function(text, scroll) {
 		var $pl = $('.plugin-list');
 		var $containers = $('.plugin-list label');
+		
+		// must always do this, as it's called after refreshing the panel (e.g. check/uncheck plugs)
 		$containers.removeClass('match');
 		if(text.length > 1) {
 			$pl.addClass('searching');
 			var matches = findElementsWithText($pl[0], text.toLowerCase(), function(d) { return d.toLowerCase(); });
 			$(matches).parents('label').addClass('match');
-			if(scroll) {
+			if(lastSearch != text && scroll) {
 				scrollPlugin($pl, matches, text);
 			}
 		}
@@ -388,8 +393,8 @@ var createFirstRunDialog = function() {
 			findIndex = 0;
 			$pl.removeClass('searching');
 			$pl.scrollTop(0);
-			lastSearch = '';
 		}
+		lastSearch = text;
 	};
 	$wizard.on('keyup change', '.plugin-select-controls input[name=searchbox]', function(e) {
 		var val = $(this).val();
@@ -397,8 +402,7 @@ var createFirstRunDialog = function() {
 	});
 	$wizard.on('click', '.clear-search', function() {
 		$('input[name=searchbox]').val('');
-		lastSearch = '';
-		searchForPlugins(lastSearch, false);
+		searchForPlugins('', false);
 	});
 	var toggleInstallDetails = function() {
 		var $c = $('.install-console');
