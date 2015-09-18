@@ -11,19 +11,19 @@
 	</div>
 	<div class="plugins col-sm-9">
 		<div class="plugin-select-controls">
-			<span class="plugin-actions">
+			<span class="plugin-select-actions">
 				<a href="#" class="plugin-select-all">All</a>
 				|
 				<a href="#" class="plugin-select-none">None</a>
 				|
 				<a href="#" class="plugin-select-recommended">Recommended</a>
 			</span>
-			<span id="plugin-counts" data-selected-plugins="{{#each selectedPlugins}}{{this}},{{/each}}">
-			{{totalPluginCount}}
-			</span>
 			<span class="plugin-search-controls">
 				<input type="text" name="searchbox" class="form-control" />
 				<a href="#" class="clear-search">&times;</a>
+			</span>
+			<span id="plugin-selected-info" class="plugin-selected-info" data-selected-plugins="{{#each selectedPlugins}}{{this}},{{/each}}">
+				<a href="#" class="plugin-show-selected">Selected</a> {{totalPluginCount}}
 			</span>
 		</div>
 		<div class="plugin-list">
@@ -47,8 +47,8 @@
 	</div>
 </div>
 <div class="modal-footer">
-	<button type="button" class="btn btn-primary install-home">
-		Back
+	<button type="button" class="btn btn-link install-home">
+		Cancel
 	</button>
 	<button type="button" class="btn btn-primary install-selected">
 		Install

@@ -3,7 +3,7 @@ var $ = require('jquery-detached').getJQuery();
 var $bs = require('bootstrap-detached').getBootstrap();
 var wh = require('window-handle');
 var globify = require('require-globify');
-var jenkins = require('./jenkins-common');
+var jenkins = require('./util/jenkins-common');
 
 wh.getWindow().zq = $;
 
@@ -52,7 +52,7 @@ var installData;
 //Hack to compile Glob files. Don´t call this function!
 function glob_everything() {
 	require(__dirname + '/*.js', {mode: 'expand'});
-	require(__dirname + '/*.hbs', {mode: 'expand'});
+	require(__dirname + '/templates/*.hbs', {mode: 'expand'});
 }
 
 var getInstallData = function() {
@@ -62,13 +62,13 @@ var getInstallData = function() {
 getInstallData();
 
 // Include handlebars templates here - explicitly require them needed for hbsfy?
-var pluginSelectionContainer = require('./pluginSelectionContainer.hbs');
-var welcomePanel = require('./welcomePanel.hbs');
-var progressPanel = require('./progressPanel.hbs');
-var pluginSelectionPanel = require('./pluginSelectionPanel.hbs');
-var successPanel = require('./successPanel.hbs');
-var offlinePanel = require('./offlinePanel.hbs');
-var dialog = require('./dialog.hbs');
+var pluginSelectionContainer = require('./templates/pluginSelectionContainer.hbs');
+var welcomePanel = require('./templates/welcomePanel.hbs');
+var progressPanel = require('./templates/progressPanel.hbs');
+var pluginSelectionPanel = require('./templates/pluginSelectionPanel.hbs');
+var successPanel = require('./templates/successPanel.hbs');
+var offlinePanel = require('./templates/offlinePanel.hbs');
+var dialog = require('./templates/dialog.hbs');
 
 var categories = [];
 var selectedCategory;
@@ -252,6 +252,7 @@ var createFirstRunDialog = function() {
 	
 	var loadCustomPluginPanel = function() {
 		loadPluginData(function() {
+			categories = [];
 			for(var i = 0; i < installData.availablePlugins.length; i++) {
 				var a = installData.availablePlugins[i];
 				categories.push(a.category);
@@ -362,17 +363,19 @@ var createFirstRunDialog = function() {
 			}
 			var $el = $(matches[findIndex]);
 			$el = $el.parents('label:first'); // scroll to the block
-			var pos = $pl.scrollTop() + $el.position().top;
-			//console.log('scroll to: ' + new Error().stack);
-			$pl.stop(true).animate({
-				scrollTop: pos
-			}, 100);
-			setTimeout(function() { // wait for css transitions to finish
+			if($el && $el.length > 0) {
 				var pos = $pl.scrollTop() + $el.position().top;
+				//console.log('scroll to: ' + new Error().stack);
 				$pl.stop(true).animate({
 					scrollTop: pos
+				}, 100);
+				setTimeout(function() { // wait for css transitions to finish
+					var pos = $pl.scrollTop() + $el.position().top;
+					$pl.stop(true).animate({
+						scrollTop: pos
+					}, 50);
 				}, 50);
-			}, 50);
+			}
 		}
 	};
 	var searchForPlugins = function(text, scroll) {
@@ -383,10 +386,15 @@ var createFirstRunDialog = function() {
 		$containers.removeClass('match');
 		if(text.length > 1) {
 			$pl.addClass('searching');
-			var matches = findElementsWithText($pl[0], text.toLowerCase(), function(d) { return d.toLowerCase(); });
-			$(matches).parents('label').addClass('match');
-			if(lastSearch != text && scroll) {
-				scrollPlugin($pl, matches, text);
+			if(text == 'show:selected') {
+				$('.plugin-list .selected').addClass('match');
+			}
+			else {
+				var matches = findElementsWithText($pl[0], text.toLowerCase(), function(d) { return d.toLowerCase(); });
+				$(matches).parents('label').addClass('match');
+				if(lastSearch != text && scroll) {
+					scrollPlugin($pl, matches, text);
+				}
 			}
 		}
 		else {
@@ -423,7 +431,8 @@ var createFirstRunDialog = function() {
 		'.install-done': finishInstallation,
 		'.plugin-select-all': function() { selectedPlugins = recommendedPlugins.slice(0); refreshPluginSelectionPanel(); },
 		'.plugin-select-none': function() { selectedPlugins = []; refreshPluginSelectionPanel(); },
-		'.plugin-select-recommended': function() { selectedPlugins = installData.defaultPlugins.slice(0); refreshPluginSelectionPanel(); }
+		'.plugin-select-recommended': function() { selectedPlugins = installData.defaultPlugins.slice(0); refreshPluginSelectionPanel(); },
+		'.plugin-show-selected': function() { $('input[name=searchbox]').val('show:selected'); searchForPlugins('show:selected', false); }
 	};
 	
 	var bindClickHandler = function(cls, action) {

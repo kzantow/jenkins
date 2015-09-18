@@ -54,23 +54,24 @@
 	}
 	
 	.plugin-selector {
-		@media screen and (min-width: 960px) {
+		@media screen and (min-width: 768px) {
 			height: 100%;
 			overflow: hidden;
 			overflow-y: hidden;
 		}
 		
 		.plugins {
-			height: 100%;
-			overflow: hidden;
+			@media screen and (min-width: 768px) {
+				height: 100%;
+				overflow: hidden;
+			}
 			padding-top: 3em;
 			position: relative;
 			
-			.plugin-actions {
-				a {
-				    display: inline-block;
-				    line-height: 32px;
-				}
+			.plugin-select-actions, .plugin-selected-info {
+				float: left;
+			    margin-right: 20px;
+			    line-height: 34px;
 			}
 			
 			.plugin-search-controls {
@@ -104,7 +105,9 @@
 			}
 			
 			.plugin-select-controls {
-				position: absolute;
+				@media screen and (min-width: 768px) {
+					position: absolute;
+				}
 			    top: 0;
 			    right: 0;
 			    left: 0;
@@ -118,8 +121,8 @@
 				position: relative;
 				padding: 10px;
 			    margin: 0 -15px;
-				    
-				@media screen and (min-width: 960px) {
+			    clear: both;
+				@media screen and (min-width: 768px) {
 					max-height: 100%;
 				}
 				overflow-y: auto;
@@ -198,7 +201,7 @@
 		
 		.categories {
 			position: relative;
-			@media screen and (min-width: 960px) {
+			@media screen and (min-width: 768px) {
 				max-height: 100%;
 			}
 			overflow-y: auto;
@@ -272,7 +275,12 @@
 		    vertical-align: top;
 		    min-height: 10em;
 	        margin-right: 1em;
-	        max-width: 40%;
+	        margin-top: 1em;
+
+			@media screen and (min-width: 768px) {
+		        max-width: 40%;
+		        margin-top: 0;
+			}
 			
 			b {
 				display: block;
