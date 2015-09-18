@@ -2,7 +2,6 @@
 var $ = require('jquery-detached').getJQuery();
 var $bs = require('bootstrap-detached').getBootstrap();
 var wh = require('window-handle');
-var globify = require('require-globify');
 var jenkins = require('./util/jenkins-common');
 
 wh.getWindow().zq = $;
@@ -47,13 +46,6 @@ Handlebars.registerHelper('inSelectedPlugins', function(val, options) {
 });
 
 var installData;
-
-//just expand to multiple require calls, one for each matched file
-//Hack to compile Glob files. Don´t call this function!
-function glob_everything() {
-	require(__dirname + '/*.js', {mode: 'expand'});
-	require(__dirname + '/templates/*.hbs', {mode: 'expand'});
-}
 
 var getInstallData = function() {
 	installData = require('./recommendedPlugins.js');
