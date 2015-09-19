@@ -1,7 +1,12 @@
-// This should be a global set of jenkins utilities in jenkins-modules or something
+/**
+ * Jenkins JS Modules common utility functions
+ */
+
+// Get the modules
 var $ = require('jquery-detached').getJQuery();
 var wh = require('window-handle');
 
+// gets the base Jenkins URL including context path
 var baseUrl = function() {
 	var u = $('head').attr('data-rooturl');
 	if(!u) {
@@ -79,56 +84,11 @@ exports.post = function(url, data, success) {
 };
 
 /**
- * simple function for defining a UI region, which has the ability to update itself.
- * usage:
- * new jenkins.part({ ... stuff })
- * new jenkins.part('template',{}) // for no backing javacsript
- */
-exports.part = function() {
-	var fn = arguments[0];
-	var o = arguments[1];
-	
-	this.template = require(__dirname+'/'+fn+'.hbs');
-	
-	this.$parent = undefined;
-	this.$handle = undefined;
-	
-	this.render = function() {
-		var html = this.template(this);
-		if(!this.$handle) {
-			this.$handle = $(html);
-			this.$handle.appendTo($parent);
-		}
-		else {
-			var $newHandle = $(html);
-			this.$handle.replaceWith($newHandle);
-			$handle = $newHandle;
-		}
-	};
-	
-	this.attach = function($parent) {
-		this.$parent = $parent;
-	};
-	
-	// take all the things, make sure to re-bind methods
-	for(var k in o) {
-		var d = o[k];
-		if(d instanceof Function || typeof(d) == 'function') {
-			d = bind(this, d);
-		}
-		this[k] = d;
-	}
-	
-	if('init' in this) { // call any initialization function present
-		this.init();
-	}
-};
-
-/**
  *  handlebars setup, this does not seem to actually work or get called by the require() of this file, so have to explicitly call it
  */
-exports.hbs = function() {
+exports.initHandlebars = function() {
 	var Handlebars = require('handlebars');
+	
 	Handlebars.registerHelper('ifeq', function(o1, o2, options) {
 		if(o1 == o2) { return options.fn(); }
 	});
@@ -144,22 +104,6 @@ exports.hbs = function() {
 	Handlebars.registerHelper('id', function(str) {
 		return (''+str).replace(/\W+/g, '_');
 	});
-
-	Handlebars.registerHelper('include', function() {
-		var scriptName = arguments[0];
-		var script = require('./'+scriptName+'.js');
-		var template = require('./'+scriptName+'.hbs');
-		
-	});
 	
 	return Handlebars;
-};
-
-/**
- * simple scoping function
- */
-exports.bind = function(obj, fn) {
-	return function() {
-		return fn.apply(obj, arguments);
-	};
 };

@@ -2,11 +2,10 @@
 var $ = require('jquery-detached').getJQuery();
 var $bs = require('bootstrap-detached').getBootstrap();
 var wh = require('window-handle');
-var jenkins = require('./util/jenkins-common');
+var jenkins = require('./util/jenkins');
 
-wh.getWindow().zq = $;
+var Handlebars = jenkins.initHandlebars();
 
-var Handlebars = jenkins.hbs(); // sets up utility functions
 Handlebars.registerHelper('pluginCount', function(cat) {
 	var plugs = categorizedPlugins[cat];
 	var tot = 0;
@@ -54,13 +53,12 @@ var getInstallData = function() {
 getInstallData();
 
 // Include handlebars templates here - explicitly require them needed for hbsfy?
-var pluginSelectionContainer = require('./templates/pluginSelectionContainer.hbs');
 var welcomePanel = require('./templates/welcomePanel.hbs');
 var progressPanel = require('./templates/progressPanel.hbs');
 var pluginSelectionPanel = require('./templates/pluginSelectionPanel.hbs');
 var successPanel = require('./templates/successPanel.hbs');
 var offlinePanel = require('./templates/offlinePanel.hbs');
-var dialog = require('./templates/dialog.hbs');
+var pluginSetupWizard = require('./templates/pluginSetupWizard.hbs');
 
 var categories = [];
 var selectedCategory;
@@ -70,10 +68,9 @@ var recommendedPlugins = [];
 var selectedPlugins = installData.defaultPlugins.slice(0); // default the set of plugins, this is just names
 
 // Setup the dialog
-var createFirstRunDialog = function() {
-	var $wizard = $('<div class="plugin-setup-wizard bootstrap-3"></div>');
+var createPluginSetupWizard = function() {
+	var $wizard = $(pluginSetupWizard());
 	$wizard.appendTo('body');
-	$wizard.append(dialog);
 	var $container = $wizard.find('.modal-content');
 	
 	var setPanel = function(panel, data, oncomplete) {
@@ -470,10 +467,10 @@ var createFirstRunDialog = function() {
 
 // go!
 if('isTest' in global) {
-	createFirstRunDialog();
+	createPluginSetupWizard();
 }
 else {
 	$(function() {
-		createFirstRunDialog();
+		createPluginSetupWizard();
 	});
 }

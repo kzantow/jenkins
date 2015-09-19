@@ -20,7 +20,7 @@ var sourcemaps = require('gulp-sourcemaps');
 var rename = require('gulp-rename');
 
 //4) vars
-var pluginName = 'plugin-setup-wizard';
+var pluginName = 'pluginSetupWizard';
 var src = './src/main/js';
 var dest = './target/generated-adjuncts';
 
