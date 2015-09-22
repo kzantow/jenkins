@@ -614,7 +614,7 @@ THE SOFTWARE.
     </profile>
     <profile>
         <id>node-classifier-windows</id>
-        <activation><os><family>windows</family><arch>x64</arch></os></activation>
+        <activation><os><family>windows</family><arch>amd64</arch></os></activation>
         <properties>
 		<node.download.file>win-x64/node.exe</node.download.file>
 		<node.file.prefix>file:/</node.file.prefix>
