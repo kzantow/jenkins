@@ -255,7 +255,6 @@ var createPluginSetupWizard = function() {
 					var plugInfo = a.plugins[c];
 					var plug = availablePlugins[plugInfo.name];
 					if(!plug) {
-						console.log('Invalid plugin: ' + plugInfo.name);
 						plug = {
 							name: plugInfo.name,
 							title: plugInfo.name
@@ -359,7 +358,6 @@ var createPluginSetupWizard = function() {
 			$el = $el.parents('label:first'); // scroll to the block
 			if($el && $el.length > 0) {
 				var pos = $pl.scrollTop() + $el.position().top;
-				//console.log('scroll to: ' + new Error().stack);
 				$pl.stop(true).animate({
 					scrollTop: pos
 				}, 100);
@@ -397,7 +395,6 @@ var createPluginSetupWizard = function() {
 		else {
 			findIndex = 0;
 			$pl.removeClass('searching');
-			//$pl.scrollTop(0);
 		}
 		lastSearch = text;
 	};

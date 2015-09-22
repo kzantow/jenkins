@@ -1,31 +1,24 @@
 var jsTest = require("jenkins-js-test");
 var jquery = require('jquery-detached');
 
-// just run timeout immediately
-global.setTimeout = function(fn) { fn(); }
+var getJQuery = function() {
+    var $ = jquery.getJQuery();
+    $.fx.off = true;
+    return $;
+};
 
 // call this for each test, it will provide a new wizard, jquery to the caller
 var test = function(test) {
 	jsTest.onPage(function() {
 		// deps
-	    var $ = jquery.getJQuery();
-	    $.fx.off = true;
-	    $.fn.animate = function(props, duration, cb) {
-	    	console.log('animate:' + JSON.stringify(cb));
-	    	if(cb) cb.apply(this);
-	    };
-	    
-	    $.fn.fadeOut = function(duration, cb) {
-	    	console.log('fadeOut:' + JSON.stringify(cb));
-	    	if(cb) cb.apply(this);
-	    };
+	    var $ = getJQuery();
 	    
 	    // Respond to status request
 	    $.ajax = function(call) {
-	    	console.log('ajax call: ' + call.url + new Error().stack)
+	    	//console.log('ajax call: ' + call.url + new Error().stack)
 	    	
 	    	switch(call.url) {
-		    	case '/updateCenter/installStatus?correlationId=1': {
+		    	case '/jenkins/updateCenter/installStatus?correlationId=1': {
 		    		call.success({
 	    				data: [
     				      {
@@ -47,7 +40,7 @@ var test = function(test) {
 		    		});
 		    		break;
 		    	}
-		    	case '/updateCenter/api/json?tree=availables[*,*[*]]': {
+		    	case '/jenkins/updateCenter/api/json?tree=availables[*,*[*]]': {
 		    		call.success({
 		    			availables: [
  		    			    {
@@ -122,34 +115,36 @@ describe("pluginSetupWizard.js", function () {
 	it("offline shows", function (done) {
 		jsTest.onPage(function() {
 			// deps
-		    var $ = jquery.getJQuery();
+		    var $ = getJQuery();
 		    var jenkins = jsTest.requireSrcModule('util/jenkins');
 		    
-		    // Respond with failure
-		    jenkins.get = function(url, cb) {
-		    	if(url == '/updateCenter/connectionStatus?siteId=default') {
-		    		cb({
-	    				status: 'ok',
-		    			data: {
-		    				updatesite: 'ERROR',
-		    				internet: 'ERROR'
-		    			}
-		    		});
-			        
-		            console.log($('body').html());
-		            
-		    		
-				    expect($('.welcome-panel h1').text()).toBe('Offline');
-		            
-			    	done();
-		    	}
-		    };
-		    
-		    // load the module
-		    var pluginSetupWizard = jsTest.requireSrcModule('pluginSetupWizardGui');
+		    var get = jenkins.get;
+		    try {
+			    // Respond with failure
+			    jenkins.get = function(url, cb) {
+			    	if(url == '/updateCenter/connectionStatus?siteId=default') {
+			    		cb({
+		    				status: 'ok',
+			    			data: {
+			    				updatesite: 'ERROR',
+			    				internet: 'ERROR'
+			    			}
+			    		});
+			    	}
+			    };
+			    
+			    // load the module
+			    var pluginSetupWizard = jsTest.requireSrcModule('pluginSetupWizardGui');
 
-	        // exported init
-	        pluginSetupWizard.init();
+		        // exported init
+		        pluginSetupWizard.init();
+		        
+			    expect($('.welcome-panel h1').text()).toBe('Offline');
+	            
+		    	done();
+		    } finally {
+		    	jenkins.get = get;
+		    }
 		});
     });
 	
@@ -171,28 +166,36 @@ describe("pluginSetupWizard.js", function () {
             goButton.click();
         });
     });
+    
+    var doit = function($, sel, trigger) {
+    	var $el = $(sel);
+    	if($el.length != 1) {
+    		console.log('Not found! ' + sel);
+    	}
+    	if(trigger == 'check') {
+    		$el.prop('checked', true);
+    		trigger = 'change';
+    	}
+    	$el.trigger(trigger);
+    };
 
     it("install custom", function (done) {
 		test(function($) {
             $('.install-custom').click();
             
             // validate a call to installPlugins with our defaults
-            validatePlugins(['msbuild'], done);
+            validatePlugins(['msbuild','slack'], done);
             
             // install a specific, other 'set' of plugins
             $('input[name=searchbox]').val('msbuild');
+            doit($, 'input[name=searchbox]', 'blur');
             
-            console.log($('body').html());
+            doit($, '.plugin-select-none', 'click');
             
-            $('.plugin-select-none').click();
+            doit($, 'input[name="msbuild"]', 'check');
+            doit($, 'input[name="slack"]', 'check');
             
-            console.log($('body').html());
-            
-            $('input[name=msbuild]').click();
-            
-            console.log($('body').html());
-            
-            $('.install-selected').click();
+            doit($, '.install-selected', 'click');
         });
     });
 

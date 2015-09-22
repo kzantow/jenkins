@@ -4,11 +4,12 @@
 
 // Get the modules
 
-var $ = require('jquery-detached').getJQuery();
+var jquery = require('jquery-detached');
 var wh = require('window-handle');
 
 // gets the base Jenkins URL including context path
 var baseUrl = function() {
+	var $ = jquery.getJQuery();
 	var u = $('head').attr('data-rooturl');
 	if(!u) {
 		u = '';
@@ -64,6 +65,7 @@ exports.go = function(url) {
  * Jenkins AJAX GET callback
  */
 exports.get = function(url, success) {
+	var $ = jquery.getJQuery();
 	$.ajax({
 		url: baseUrl() + url,
 		type: 'GET',
@@ -75,6 +77,7 @@ exports.get = function(url, success) {
  * Jenkins AJAX POST callback, formats data as a JSON object post (note: works around prototype.js ugliness using stringify() above)
  */
 exports.post = function(url, data, success) {
+	var $ = jquery.getJQuery();
     $.ajax({
 		url: baseUrl() + url,
 		type: "POST",
