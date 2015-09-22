@@ -101,7 +101,7 @@ ${h.initPageVariables(context)}
 
     <script src="${resURL}/scripts/prototype.js" type="text/javascript"/>
     <script src="${resURL}/scripts/behavior.js" type="text/javascript"/>
-
+    
     <!-- we include our own prototype.js, so don't let stapler pull in another. -->
     <st:adjunct assumes="org.kohsuke.stapler.framework.prototype.prototype"
                 includes="org.kohsuke.stapler.bind"/>
@@ -154,6 +154,11 @@ ${h.initPageVariables(context)}
       </j:forEach>
     </j:if>
 
+    <j:if test="${h.startupType.name() == 'NEW' &amp;&amp; !h.isUnitTest}">
+      <script src="${resURL}/${h.installWizardPath}.js" type="text/javascript"/>
+      <link rel="stylesheet" href="${resURL}/${h.installWizardPath}.css" type="text/css" />
+    </j:if>
+    
     <j:if test="${isMSIE}">
       <script src="${resURL}/scripts/msie.js" type="text/javascript"/>
     </j:if>

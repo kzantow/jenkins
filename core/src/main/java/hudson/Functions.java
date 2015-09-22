@@ -474,8 +474,8 @@ public class Functions {
      * @return The URL path to the Install Wizard JavaScript.
      * @since FIXME
      */
-    public static String getInstallWizardJS() {
-        return Jenkins.getActiveInstance().getInstallWizardJS();
+    public static String getInstallWizardPath() {
+        return Jenkins.getActiveInstance().getInstallWizardPath();
     }
 
     @Restricted(NoExternalUse.class)

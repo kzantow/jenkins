@@ -26,202 +26,11 @@
  */
 package jenkins.model;
 
-import static hudson.Util.fixEmpty;
-import static hudson.Util.fixNull;
-import static hudson.init.InitMilestone.EXTENSIONS_AUGMENTED;
-import static hudson.init.InitMilestone.JOB_LOADED;
-import static java.util.logging.Level.INFO;
-import static java.util.logging.Level.SEVERE;
-import static javax.servlet.http.HttpServletResponse.SC_BAD_REQUEST;
-import static javax.servlet.http.HttpServletResponse.SC_NOT_FOUND;
-
-import java.io.File;
-import java.io.File;
-import java.io.IOException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStream;
-import java.io.PrintWriter;
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.io.StringWriter;
-import java.net.BindException;
-import java.net.BindException;
-import java.net.HttpURLConnection;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URL;
-import java.nio.charset.Charset;
-import java.nio.charset.Charset;
-import java.security.SecureRandom;
-import java.security.SecureRandom;
-import java.util.ArrayList;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Iterator;
-import java.util.List;
-import java.util.List;
-import java.util.Map;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Map.Entry;
-import java.util.Properties;
-import java.util.Properties;
-import java.util.Set;
-import java.util.Set;
-import java.util.StringTokenizer;
-import java.util.StringTokenizer;
-import java.util.TreeMap;
-import java.util.TreeMap;
-import java.util.TreeSet;
-import java.util.TreeSet;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.logging.Level;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
-import java.util.logging.LogRecord;
-import java.util.logging.Logger;
-import java.util.logging.Logger;
-
-import javax.annotation.CheckForNull;
-import javax.annotation.CheckForNull;
-import javax.annotation.Nonnull;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import javax.annotation.Nullable;
-import javax.crypto.SecretKey;
-import javax.crypto.SecretKey;
-import javax.servlet.RequestDispatcher;
-import javax.servlet.RequestDispatcher;
-import javax.servlet.ServletContext;
-import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
-import javax.servlet.ServletException;
-import javax.servlet.http.Cookie;
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpServletResponse;
-
-import org.acegisecurity.AccessDeniedException;
-import org.acegisecurity.AccessDeniedException;
-import org.acegisecurity.AcegiSecurityException;
-import org.acegisecurity.AcegiSecurityException;
-import org.acegisecurity.Authentication;
-import org.acegisecurity.Authentication;
-import org.acegisecurity.GrantedAuthority;
-import org.acegisecurity.GrantedAuthority;
-import org.acegisecurity.GrantedAuthorityImpl;
-import org.acegisecurity.GrantedAuthorityImpl;
-import org.acegisecurity.context.SecurityContextHolder;
-import org.acegisecurity.context.SecurityContextHolder;
-import org.acegisecurity.providers.anonymous.AnonymousAuthenticationToken;
-import org.acegisecurity.providers.anonymous.AnonymousAuthenticationToken;
-import org.acegisecurity.ui.AbstractProcessingFilter;
-import org.acegisecurity.ui.AbstractProcessingFilter;
-import org.apache.commons.jelly.JellyException;
-import org.apache.commons.jelly.JellyException;
-import org.apache.commons.jelly.Script;
-import org.apache.commons.jelly.Script;
-import org.apache.commons.logging.LogFactory;
-import org.apache.commons.logging.LogFactory;
-import org.jvnet.hudson.reactor.Executable;
-import org.jvnet.hudson.reactor.Executable;
-import org.jvnet.hudson.reactor.Reactor;
-import org.jvnet.hudson.reactor.Reactor;
-import org.jvnet.hudson.reactor.ReactorException;
-import org.jvnet.hudson.reactor.ReactorException;
-import org.jvnet.hudson.reactor.Task;
-import org.jvnet.hudson.reactor.Task;
-import org.jvnet.hudson.reactor.TaskBuilder;
-import org.jvnet.hudson.reactor.TaskBuilder;
-import org.jvnet.hudson.reactor.TaskGraphBuilder;
-import org.jvnet.hudson.reactor.TaskGraphBuilder;
-import org.jvnet.hudson.reactor.TaskGraphBuilder.Handle;
-import org.jvnet.hudson.reactor.TaskGraphBuilder.Handle;
-import org.kohsuke.accmod.Restricted;
-import org.kohsuke.accmod.Restricted;
-import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.kohsuke.accmod.restrictions.NoExternalUse;
-import org.kohsuke.args4j.Argument;
-import org.kohsuke.args4j.Argument;
-import org.kohsuke.args4j.Option;
-import org.kohsuke.args4j.Option;
-import org.kohsuke.stapler.HttpRedirect;
-import org.kohsuke.stapler.HttpRedirect;
-import org.kohsuke.stapler.HttpResponse;
-import org.kohsuke.stapler.HttpResponse;
-import org.kohsuke.stapler.HttpResponses;
-import org.kohsuke.stapler.HttpResponses;
-import org.kohsuke.stapler.MetaClass;
-import org.kohsuke.stapler.MetaClass;
-import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.QueryParameter;
-import org.kohsuke.stapler.Stapler;
-import org.kohsuke.stapler.Stapler;
-import org.kohsuke.stapler.StaplerFallback;
-import org.kohsuke.stapler.StaplerFallback;
-import org.kohsuke.stapler.StaplerProxy;
-import org.kohsuke.stapler.StaplerProxy;
-import org.kohsuke.stapler.StaplerRequest;
-import org.kohsuke.stapler.StaplerRequest;
-import org.kohsuke.stapler.StaplerResponse;
-import org.kohsuke.stapler.StaplerResponse;
-import org.kohsuke.stapler.WebApp;
-import org.kohsuke.stapler.WebApp;
-import org.kohsuke.stapler.export.Exported;
-import org.kohsuke.stapler.export.Exported;
-import org.kohsuke.stapler.export.ExportedBean;
-import org.kohsuke.stapler.export.ExportedBean;
-import org.kohsuke.stapler.framework.adjunct.AdjunctManager;
-import org.kohsuke.stapler.framework.adjunct.AdjunctManager;
-import org.kohsuke.stapler.interceptor.RequirePOST;
-import org.kohsuke.stapler.interceptor.RequirePOST;
-import org.kohsuke.stapler.jelly.JellyClassLoaderTearOff;
-import org.kohsuke.stapler.jelly.JellyClassLoaderTearOff;
-import org.kohsuke.stapler.jelly.JellyRequestDispatcher;
-import org.kohsuke.stapler.jelly.JellyRequestDispatcher;
-import org.xml.sax.InputSource;
-import org.xml.sax.InputSource;
-
+import antlr.ANTLRException;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.inject.Injector;
 import com.thoughtworks.xstream.XStream;
-
-import antlr.ANTLRException;
 import hudson.BulkChange;
 import hudson.DNSMultiCast;
 import hudson.DescriptorExtensionList;
@@ -239,7 +48,6 @@ import hudson.Lookup;
 import hudson.Plugin;
 import hudson.PluginManager;
 import hudson.PluginWrapper;
-import hudson.PluginWrapper.Dependency;
 import hudson.ProxyConfiguration;
 import hudson.TcpSlaveAgentListener;
 import hudson.UDPBroadcastThread;
@@ -366,8 +174,6 @@ import hudson.util.HudsonIsRestarting;
 import hudson.util.IOUtils;
 import hudson.util.Iterators;
 import hudson.util.JenkinsReloadFailed;
-import hudson.util.LogTaskListener;
-import hudson.util.LogTaskListener;
 import hudson.util.Memoizer;
 import hudson.util.MultipartFormDataParser;
 import hudson.util.NamingThreadFactory;
@@ -390,12 +196,108 @@ import jenkins.install.StartupUtil;
 import jenkins.model.ProjectNamingStrategy.DefaultProjectNamingStrategy;
 import jenkins.security.ConfidentialKey;
 import jenkins.security.ConfidentialStore;
-import jenkins.security.MasterToSlaveCallable;
 import jenkins.security.SecurityListener;
+import jenkins.security.MasterToSlaveCallable;
 import jenkins.slaves.WorkspaceLocator;
 import jenkins.util.Timer;
 import jenkins.util.io.FileBoolean;
 import net.sf.json.JSONObject;
+import org.acegisecurity.AccessDeniedException;
+import org.acegisecurity.AcegiSecurityException;
+import org.acegisecurity.Authentication;
+import org.acegisecurity.GrantedAuthority;
+import org.acegisecurity.GrantedAuthorityImpl;
+import org.acegisecurity.context.SecurityContextHolder;
+import org.acegisecurity.providers.anonymous.AnonymousAuthenticationToken;
+import org.acegisecurity.ui.AbstractProcessingFilter;
+import org.apache.commons.jelly.JellyException;
+import org.apache.commons.jelly.Script;
+import org.apache.commons.logging.LogFactory;
+import org.jvnet.hudson.reactor.Executable;
+import org.jvnet.hudson.reactor.Reactor;
+import org.jvnet.hudson.reactor.ReactorException;
+import org.jvnet.hudson.reactor.Task;
+import org.jvnet.hudson.reactor.TaskBuilder;
+import org.jvnet.hudson.reactor.TaskGraphBuilder;
+import org.jvnet.hudson.reactor.TaskGraphBuilder.Handle;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.kohsuke.args4j.Argument;
+import org.kohsuke.args4j.Option;
+import org.kohsuke.stapler.HttpRedirect;
+import org.kohsuke.stapler.HttpResponse;
+import org.kohsuke.stapler.HttpResponses;
+import org.kohsuke.stapler.MetaClass;
+import org.kohsuke.stapler.QueryParameter;
+import org.kohsuke.stapler.Stapler;
+import org.kohsuke.stapler.StaplerFallback;
+import org.kohsuke.stapler.StaplerProxy;
+import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.StaplerResponse;
+import org.kohsuke.stapler.WebApp;
+import org.kohsuke.stapler.export.Exported;
+import org.kohsuke.stapler.export.ExportedBean;
+import org.kohsuke.stapler.framework.adjunct.AdjunctManager;
+import org.kohsuke.stapler.interceptor.RequirePOST;
+import org.kohsuke.stapler.jelly.JellyClassLoaderTearOff;
+import org.kohsuke.stapler.jelly.JellyRequestDispatcher;
+import org.xml.sax.InputSource;
+
+import javax.annotation.CheckForNull;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.crypto.SecretKey;
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletResponse;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.net.BindException;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.Charset;
+import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Properties;
+import java.util.Set;
+import java.util.StringTokenizer;
+import java.util.TreeSet;
+import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+
+import static hudson.Util.*;
+import static hudson.init.InitMilestone.*;
+import hudson.util.LogTaskListener;
+import static java.util.logging.Level.*;
+import static javax.servlet.http.HttpServletResponse.*;
 
 /**
  * Root object of the system.
@@ -918,7 +820,7 @@ public class Jenkins extends AbstractCIBase implements DirectlyModifiableTopLeve
             this.pluginManager = pluginManager;
             // JSON binding needs to be able to see all the classes from all the plugins
             WebApp.get(servletContext).setClassLoader(pluginManager.uberClassLoader);
-            
+
             adjuncts = new AdjunctManager(servletContext, pluginManager.uberClassLoader,"adjuncts/"+SESSION_HASH, TimeUnit2.DAYS.toMillis(365));
 
             // initialization consists of ...
@@ -993,8 +895,8 @@ public class Jenkins extends AbstractCIBase implements DirectlyModifiableTopLeve
      * @return The URL path to the Install Wizard JavaScript.
      * @since FIXME
      */
-    public String getInstallWizardJS() {
-        return servletContext.getInitParameter("install-wizard-js");
+    public String getInstallWizardPath() {
+        return servletContext.getInitParameter("install-wizard-path");
     }
 
     /**
@@ -1128,7 +1030,7 @@ public class Jenkins extends AbstractCIBase implements DirectlyModifiableTopLeve
     public boolean isUsageStatisticsCollected() {
         return noUsageStatistics==null || !noUsageStatistics;
     }
-    
+
     public void setNoUsageStatistics(Boolean noUsageStatistics) throws IOException {
         this.noUsageStatistics = noUsageStatistics;
         save();
@@ -4452,44 +4354,5 @@ public class Jenkins extends AbstractCIBase implements DirectlyModifiableTopLeve
             throw e;
         }
     }
-    
-    public static class JsBundle {
-    	URL jsFile;
-    }
 
-    /**
-     * Gets all the javascript bundles required for plugins, in proper inclusion order
-     * @param s
-     */
-    public List<JsBundle> getBundles(String s) {
-    	List<JsBundle> bundles = new ArrayList<JsBundle>();
-        for(PluginWrapper p : pluginManager.getPlugins()) {
-        	appendBundles(s, p, bundles);
-        }
-        Collections.reverse(bundles); // include dependencies first
-    	return bundles;
-    }
-    
-    /**
-     * process and append transitive dependencies
-     * @param s
-     * @param p
-     * @param bundles
-     */
-    private void appendBundles(String s, PluginWrapper p, List<JsBundle> bundles) {
-    	if(p.hasCycleDependency()) {
-    		return; // don't support cyclic dependencies
-    	}
-		URL u = p.getClass().getClassLoader().getResource("plugin.js");
-		if(u != null) {
-			JsBundle jsb = new JsBundle();
-			jsb.jsFile = u;
-			bundles.add(jsb);
-			
-	    	for(Dependency dep : p.getDependencies()) {
-	    		PluginWrapper pw = pluginManager.getPlugin(dep.shortName);
-	    		appendBundles(s, pw, bundles);
-	    	}
-		}
-    }
 }

@@ -39,7 +39,7 @@
     
     <!-- TODO: Move to parent pom -->
     <nodejs.dist.baseurl>https://nodejs.org/dist/</nodejs.dist.baseurl>
-    <nodejs.version>v4.0.0</nodejs.version>
+    <nodejs.version>v4.1.0</nodejs.version>
     <npm.dist.baseurl>http://registry.npmjs.org/npm/-/</npm.dist.baseurl>
     <npm.version>2.14.2</npm.version>
   </properties>
