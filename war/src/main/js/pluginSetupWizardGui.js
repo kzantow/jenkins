@@ -374,10 +374,12 @@ var createPluginSetupWizard = function() {
 	};
 	var searchForPlugins = function(text, scroll) {
 		var $pl = $('.plugin-list');
-		var $containers = $('.plugin-list label');
+		var $containers = $pl.find('label');
 		
 		// must always do this, as it's called after refreshing the panel (e.g. check/uncheck plugs)
 		$containers.removeClass('match');
+		$pl.find('h2').removeClass('match');
+		
 		if(text.length > 1) {
 			$pl.addClass('searching');
 			if(text == 'show:selected') {
@@ -390,11 +392,12 @@ var createPluginSetupWizard = function() {
 					scrollPlugin($pl, matches, text);
 				}
 			}
+			$('.match').parent().prev('h2').addClass('match');
 		}
 		else {
 			findIndex = 0;
 			$pl.removeClass('searching');
-			$pl.scrollTop(0);
+			//$pl.scrollTop(0);
 		}
 		lastSearch = text;
 	};
@@ -416,6 +419,21 @@ var createPluginSetupWizard = function() {
 		}
 	};
 	
+	var selectCategory = function() {
+		$('input[name=searchbox]').val('');
+		searchForPlugins('', false);
+		var id = $(this).attr('href');
+		var $el = $($(this).attr('href'));
+		var $pl = $('.plugin-list');
+		var top = $pl.scrollTop() + $el.position().top;
+		$pl.stop(true).animate({
+			scrollTop: top
+		}, 250, function() {
+			var top = $pl.scrollTop() + $el.position().top;
+			$pl.stop(true).scrollTop(top);
+		})
+	};
+	
 	var actions = {
 		'.install-recommended': installDefaultPlugins,
 		'.install-custom': loadCustomPluginPanel,
@@ -426,7 +444,8 @@ var createPluginSetupWizard = function() {
 		'.plugin-select-all': function() { selectedPlugins = recommendedPlugins.slice(0); refreshPluginSelectionPanel(); },
 		'.plugin-select-none': function() { selectedPlugins = []; refreshPluginSelectionPanel(); },
 		'.plugin-select-recommended': function() { selectedPlugins = installData.defaultPlugins.slice(0); refreshPluginSelectionPanel(); },
-		'.plugin-show-selected': function() { $('input[name=searchbox]').val('show:selected'); searchForPlugins('show:selected', false); }
+		'.plugin-show-selected': function() { $('input[name=searchbox]').val('show:selected'); searchForPlugins('show:selected', false); },
+		'.select-category': selectCategory
 	};
 	
 	// scoped click handler, prevents default actions automatically

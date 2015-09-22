@@ -134,7 +134,7 @@
 					}
 				}
 				
-				&.searching {
+				&.searching-with-transition {
 					label {
 						display: none;
 					    transition: all .25s;
@@ -156,10 +156,24 @@
 					    }
 					}
 					h2 {
-				        transition: all .5s;
 					    color: #ddd;
+				        transition: all .5s;
 					    font-size: 22px;
 					    margin: 6px 0 6px -10px;
+					}
+				}
+				
+				&.searching {
+					label {
+						display: none;
+					    transition: all .25s;
+					    
+					    &.match {
+				    	    display: block;
+					    }
+					}
+					h2 {
+						display: none;
 					}
 				}
 				
