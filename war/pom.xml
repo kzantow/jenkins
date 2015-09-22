@@ -41,7 +41,7 @@ THE SOFTWARE.
     <JENKINS_HOME>${basedir}/work</JENKINS_HOME>
     <contextPath>/jenkins</contextPath><!-- context path during test -->
     <port>8080</port><!-- HTTP listener port -->
-    <node.version>4.0.0</node.version>
+    <node.version>4.1.0</node.version>
     <npm.version>2.13.1</npm.version>
   </properties>
 
@@ -608,8 +608,13 @@ THE SOFTWARE.
     </profile>
     <profile>
         <id>node-classifier-windows</id>
-        <activation><os><family>windows</family></os></activation>
+        <activation><os><family>windows</family><arch>x64</arch></os></activation>
         <properties><node.download.file>win-x64/node.exe</node.download.file></properties>
+    </profile>
+    <profile>
+        <id>node-classifier-windows-x86</id>
+        <activation><os><family>windows</family><arch>x86</arch></os></activation>
+        <properties><node.download.file>win-x86/node.exe</node.download.file></properties>
     </profile>
     <profile>
         <id>node-download</id>
@@ -697,7 +702,7 @@ THE SOFTWARE.
                                 <nodeVersion>v${node.version}</nodeVersion>
                                 <npmVersion>${npm.version}</npmVersion>
                                 <!-- Use the pre-download node and npm packages. See download-maven-plugin config above. -->
-                                <downloadRoot>file:${project.build.directory}/frontend/</downloadRoot>
+                                <downloadRoot>file:/${project.build.directory}/frontend/</downloadRoot>
                             </configuration>
                         </execution>
 
