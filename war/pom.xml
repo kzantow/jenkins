@@ -599,22 +599,34 @@ THE SOFTWARE.
     <profile>
         <id>node-classifier-linux</id>
         <activation><os><family>Linux</family><arch>amd64</arch></os></activation>
-        <properties><node.download.file>node-v${node.version}-linux-x64.tar.gz</node.download.file></properties>
+        <properties>
+		<node.download.file>node-v${node.version}-linux-x64.tar.gz</node.download.file>
+		<node.file.prefix>file:</node.file.prefix>
+	</properties>
     </profile>
     <profile>
         <id>node-classifier-mac</id>
         <activation><os><family>mac</family></os></activation>
-        <properties><node.download.file>node-v${node.version}-darwin-x64.tar.gz</node.download.file></properties>
+        <properties>
+		<node.download.file>node-v${node.version}-darwin-x64.tar.gz</node.download.file>
+		<node.file.prefix>file:</node.file.prefix>
+	</properties>
     </profile>
     <profile>
         <id>node-classifier-windows</id>
         <activation><os><family>windows</family><arch>x64</arch></os></activation>
-        <properties><node.download.file>win-x64/node.exe</node.download.file></properties>
+        <properties>
+		<node.download.file>win-x64/node.exe</node.download.file>
+		<node.file.prefix>file:/</node.file.prefix>
+	</properties>
     </profile>
     <profile>
         <id>node-classifier-windows-x86</id>
         <activation><os><family>windows</family><arch>x86</arch></os></activation>
-        <properties><node.download.file>win-x86/node.exe</node.download.file></properties>
+        <properties>
+		<node.download.file>win-x86/node.exe</node.download.file>
+		<node.file.prefix>file:/</node.file.prefix>
+	</properties>
     </profile>
     <profile>
         <id>node-download</id>
@@ -702,7 +714,7 @@ THE SOFTWARE.
                                 <nodeVersion>v${node.version}</nodeVersion>
                                 <npmVersion>${npm.version}</npmVersion>
                                 <!-- Use the pre-download node and npm packages. See download-maven-plugin config above. -->
-                                <downloadRoot>file:/${project.build.directory}/frontend/</downloadRoot>
+                                <downloadRoot>${node.file.prefix}${project.build.directory}/frontend/</downloadRoot>
                             </configuration>
                         </execution>
 
