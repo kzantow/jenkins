@@ -833,11 +833,10 @@ public class Jenkins extends AbstractCIBase implements DirectlyModifiableTopLeve
 
             adjuncts = new AdjunctManager(servletContext, pluginManager.uberClassLoader,"adjuncts/"+SESSION_HASH, TimeUnit2.DAYS.toMillis(365));
 
-            // some initialization is necessary
-            initPreSetupTasks();
-
             if(installState == InstallState.TEST) {
-                initPostSetupTasks(); // do all the initialization during tests
+                // do all the initialization during tests
+                initPreSetupTasks();
+                initPostSetupTasks();
             }
 
             if (LOG_STARTUP_PERFORMANCE)

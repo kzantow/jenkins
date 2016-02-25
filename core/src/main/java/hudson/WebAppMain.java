@@ -226,6 +226,8 @@ public class WebAppMain implements ServletContextListener {
                     boolean success = false;
                     try {
                         Jenkins instance = new Hudson(_home, context);
+                        // some initialization is necessary
+                        instance.initPreSetupTasks();
 
                         // Start immediately with the setup wizard for new installs
                         if (InstallState.NEW.equals(InstallUtil.getInstallState())) {
