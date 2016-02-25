@@ -136,6 +136,7 @@ import hudson.security.BasicAuthenticationFilter;
 import hudson.security.FederatedLoginService;
 import hudson.security.FullControlOnceLoggedInAuthorizationStrategy;
 import hudson.security.HudsonFilter;
+import hudson.security.HudsonPrivateSecurityRealm;
 import hudson.security.LegacyAuthorizationStrategy;
 import hudson.security.LegacySecurityRealm;
 import hudson.security.Permission;
@@ -194,6 +195,7 @@ import jenkins.ExtensionRefreshException;
 import jenkins.InitReactorRunner;
 import jenkins.install.InstallState;
 import jenkins.install.InstallUtil;
+import jenkins.install.SplitInitStrategy;
 import jenkins.model.ProjectNamingStrategy.DefaultProjectNamingStrategy;
 import jenkins.security.ConfidentialKey;
 import jenkins.security.ConfidentialStore;
@@ -765,9 +767,7 @@ public class Jenkins extends AbstractCIBase implements DirectlyModifiableTopLeve
             this.root = root;
             this.servletContext = context;
             computeVersion(context);
-            if(theInstance!=null)
-                throw new IllegalStateException("second instance");
-            theInstance = this;
+            setGlobalInstance(this);
 
             installState = InstallUtil.getInstallState();
             if (installState == InstallState.RESTART || installState == InstallState.DOWNGRADE) {
@@ -778,9 +778,6 @@ public class Jenkins extends AbstractCIBase implements DirectlyModifiableTopLeve
                 // if this is a fresh install, use more modern default layout that's consistent with agents
                 workspaceDir = "${JENKINS_HOME}/workspace/${ITEM_FULLNAME}";
             }
-
-            // doing this early allows InitStrategy to set environment upfront
-            final InitStrategy is = InitStrategy.get(Thread.currentThread().getContextClassLoader());
 
             Trigger.timer = new java.util.Timer("Jenkins cron thread");
             queue = new Queue(LoadBalancer.CONSISTENT_HASH);
@@ -822,60 +819,19 @@ public class Jenkins extends AbstractCIBase implements DirectlyModifiableTopLeve
             // JSON binding needs to be able to see all the classes from all the plugins
             WebApp.get(servletContext).setClassLoader(pluginManager.uberClassLoader);
 
-            adjuncts = new AdjunctManager(servletContext, pluginManager.uberClassLoader,"adjuncts/"+SESSION_HASH, TimeUnit2.DAYS.toMillis(365));
+            // doing this early allows InitStrategy to set environment upfront
+            initStrategy = new SplitInitStrategy(
+                InitStrategy.get(Thread.currentThread().getContextClassLoader()), // delegate to the base init strategy
+                InitMilestone.PLUGINS_STARTED); // This ensures UpdateCenter.init has completed
 
-            // initialization consists of ...
-            executeReactor( is,
-                    pluginManager.initTasks(is),    // loading and preparing plugins
-                    loadTasks(),                    // load jobs
-                    InitMilestone.ordering()        // forced ordering among key milestones
+            initStrategy.setTaskBuilders(
+                // initialization consists of ...
+                pluginManager.initTasks(initStrategy),    // loading and preparing plugins
+                loadTasks(),                    // load jobs
+                InitMilestone.ordering()        // forced ordering among key milestones
             );
 
-            if(KILL_AFTER_LOAD)
-                System.exit(0);
-
-            launchTcpSlaveAgentListener();
-
-            if (UDPBroadcastThread.PORT != -1) {
-                try {
-                    udpBroadcastThread = new UDPBroadcastThread(this);
-                    udpBroadcastThread.start();
-                } catch (IOException e) {
-                    LOGGER.log(Level.WARNING, "Failed to broadcast over UDP (use -Dhudson.udp=-1 to disable)", e);
-                }
-            }
-            dnsMultiCast = new DNSMultiCast(this);
-
-            Timer.get().scheduleAtFixedRate(new SafeTimerTask() {
-                @Override
-                protected void doRun() throws Exception {
-                    trimLabels();
-                }
-            }, TimeUnit2.MINUTES.toMillis(5), TimeUnit2.MINUTES.toMillis(5), TimeUnit.MILLISECONDS);
-
-            updateComputerList();
-
-            {// master is online now
-                Computer c = toComputer();
-                if(c!=null)
-                    for (ComputerListener cl : ComputerListener.all())
-                        cl.onOnline(c, new LogTaskListener(LOGGER, INFO));
-            }
-
-            for (ItemListener l : ItemListener.all()) {
-                long itemListenerStart = System.currentTimeMillis();
-                try {
-                    l.onLoaded();
-                } catch (RuntimeException x) {
-                    LOGGER.log(Level.WARNING, null, x);
-                }
-                if (LOG_STARTUP_PERFORMANCE)
-                    LOGGER.info(String.format("Took %dms for item listener %s startup",
-                            System.currentTimeMillis()-itemListenerStart,l.getClass().getName()));
-            }
-
-            // All plugins are loaded. Now we can figure out who depends on who.
-            resolveDependantPlugins();
+            adjuncts = new AdjunctManager(servletContext, pluginManager.uberClassLoader,"adjuncts/"+SESSION_HASH, TimeUnit2.DAYS.toMillis(365));
 
             if (LOG_STARTUP_PERFORMANCE)
                 LOGGER.info(String.format("Took %dms for complete Jenkins startup",
@@ -883,6 +839,77 @@ public class Jenkins extends AbstractCIBase implements DirectlyModifiableTopLeve
         } finally {
             SecurityContextHolder.clearContext();
         }
+    }
+
+    protected void setGlobalInstance(Jenkins jenkins) {
+        if(theInstance != null)
+            throw new IllegalStateException("second instance");
+        theInstance = jenkins;
+	}
+
+    // doing this early allows InitStrategy to set environment upfront
+    private transient SplitInitStrategy initStrategy;
+
+    public void initPreSetupTasks() throws IOException, InterruptedException, ReactorException {
+        executeReactor( initStrategy, initStrategy.getTaskBuilders() );
+    }
+
+	/**
+     * Perform the actual Jenkins initialization
+     * @throws IOException
+     * @throws ReactorException
+     * @throws InterruptedException
+     */
+    public void initPostSetupTasks() throws IOException, InterruptedException, ReactorException {
+        // continue initialization, skipping tasks which have already run
+        executeReactor( initStrategy, initStrategy.continueInitialization() );
+
+        if(KILL_AFTER_LOAD)
+            System.exit(0);
+
+        launchTcpSlaveAgentListener();
+
+        if (UDPBroadcastThread.PORT != -1) {
+            try {
+                udpBroadcastThread = new UDPBroadcastThread(this);
+                udpBroadcastThread.start();
+            } catch (IOException e) {
+                LOGGER.log(Level.WARNING, "Failed to broadcast over UDP (use -Dhudson.udp=-1 to disable)", e);
+            }
+        }
+        dnsMultiCast = new DNSMultiCast(this);
+
+        Timer.get().scheduleAtFixedRate(new SafeTimerTask() {
+            @Override
+            protected void doRun() throws Exception {
+                trimLabels();
+            }
+        }, TimeUnit2.MINUTES.toMillis(5), TimeUnit2.MINUTES.toMillis(5), TimeUnit.MILLISECONDS);
+
+        updateComputerList();
+
+        {// master is online now
+            Computer c = toComputer();
+            if(c!=null)
+                for (ComputerListener cl : ComputerListener.all())
+                    cl.onOnline(c, new LogTaskListener(LOGGER, INFO));
+        }
+
+        for (ItemListener l : ItemListener.all()) {
+            long itemListenerStart = System.currentTimeMillis();
+            try {
+                l.onLoaded();
+            } catch (RuntimeException x) {
+                LOGGER.log(Level.WARNING, null, x);
+            }
+            if (LOG_STARTUP_PERFORMANCE)
+                LOGGER.info(String.format("Took %dms for item listener %s startup",
+                        System.currentTimeMillis()-itemListenerStart,l.getClass().getName()));
+        }
+
+        // All plugins are loaded. Now we can figure out who depends on who.
+        resolveDependantPlugins();
+
     }
 
     private void resolveDependantPlugins() throws InterruptedException, ReactorException, IOException {
@@ -908,7 +935,7 @@ public class Jenkins extends AbstractCIBase implements DirectlyModifiableTopLeve
         }
         return this;
     }
-    
+
     /**
      * Get the Jenkins {@link jenkins.install.InstallState install state}.
      * @return The Jenkins {@link jenkins.install.InstallState install state}.
@@ -924,6 +951,32 @@ public class Jenkins extends AbstractCIBase implements DirectlyModifiableTopLeve
     @Restricted(NoExternalUse.class)
     public void setInstallState(@Nonnull InstallState newState) {
         installState = newState;
+        try {
+            switch(newState) {
+            case INITIAL_PLUGINS_INSTALLED:
+                //initPostSetupTasks(); // is this necessary here?
+                break;
+            case SECURITY_CONFIGURATION_COMPLETED:
+                // Do we need to create a user?
+                if(!HudsonPrivateSecurityRealm.requiresLocalUser(this)) {
+                    setInstallState(InstallState.INITIAL_SETUP_COMPLETED);
+                }
+                else {
+                    setInstallState(InstallState.CREATING_ADMIN_USER);
+                }
+                break;
+            case ADMIN_USER_CREATED:
+                setInstallState(InstallState.INITIAL_SETUP_COMPLETED);
+                break;
+            case INITIAL_SETUP_COMPLETED:
+                initPostSetupTasks(); // finish any remaining Jenkins initialization
+                servletContext.setAttribute(WebAppMain.APP, this);
+                break;
+            default:
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**

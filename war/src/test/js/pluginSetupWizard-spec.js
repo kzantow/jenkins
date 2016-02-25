@@ -133,7 +133,7 @@ var test = function(test, ajaxMappings) {
         var pluginSetupWizard = jsTest.requireSrcModule('pluginSetupWizardGui');
 
         // exported init
-        pluginSetupWizard.init();
+        pluginSetupWizard.init('body');
 
         test($, pluginSetupWizard);
 	});
@@ -210,7 +210,7 @@ describe("pluginSetupWizard.js", function () {
 			    var pluginSetupWizard = jsTest.requireSrcModule('pluginSetupWizardGui');
 
 		        // exported init
-		        pluginSetupWizard.init();
+		        pluginSetupWizard.init('body');
 
 			    expect($('.welcome-panel h1').text()).toBe('Offline');
 

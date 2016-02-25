@@ -7,9 +7,13 @@ var jquery = require('jquery-detached');
 var bootstrap = require('bootstrap-detached');
 var jenkins = require('./util/jenkins');
 var pluginManager = require('./api/pluginManager');
+var securityConfig = require('./api/securityConfig');
+var wh = require('window-handle');
+
+window.zq = jquery.getJQuery();
 
 // Setup the dialog, exported
-var createPluginSetupWizard = function() {
+var createPluginSetupWizard = function(appendTo) {
 	// call getJQuery / getBootstrap within the main function so it will work with tests -- if getJQuery etc is called in the main
 	var $ = jquery.getJQuery();
 	var $bs = bootstrap.getBootstrap();
@@ -96,6 +100,9 @@ var createPluginSetupWizard = function() {
 	var progressPanel = require('./templates/progressPanel.hbs');
 	var pluginSelectionPanel = require('./templates/pluginSelectionPanel.hbs');
 	var successPanel = require('./templates/successPanel.hbs');
+	var setupCompletePanel = require('./templates/setupCompletePanel.hbs');
+	var securityPanel = require('./templates/securityPanel.hbs');
+	var firstUserPanel = require('./templates/firstUserPanel.hbs');
 	var offlinePanel = require('./templates/offlinePanel.hbs');
 	var pluginSetupWizard = require('./templates/pluginSetupWizard.hbs');
 	var incompleteInstallationPanel = require('./templates/incompleteInstallationPanel.hbs');
@@ -120,15 +127,15 @@ var createPluginSetupWizard = function() {
 
 	// state variables for plugin data, selected plugins, etc.:
 	var pluginList = pluginManager.plugins();
-    var allPluginNames = pluginManager.pluginNames();
-    var selectedPluginNames = pluginManager.recommendedPluginNames();
-    var categories = [];
-    var availablePlugins = {};
-    var categorizedPlugins = {};
+	var allPluginNames = pluginManager.pluginNames();
+	var selectedPluginNames = pluginManager.recommendedPluginNames();
+	var categories = [];
+	var availablePlugins = {};
+	var categorizedPlugins = {};
 
 	// Instantiate the wizard panel
 	var $wizard = $(pluginSetupWizard());
-	$wizard.appendTo('body');
+	$wizard.appendTo(appendTo);
 	var $container = $wizard.find('.modal-content');
 	var currentPanel;
 
@@ -151,10 +158,10 @@ var createPluginSetupWizard = function() {
 	var translations = {};
 
 	var decorations = [
-        function() {
+		function() {
 		// any decorations after DOM replacement go here
-        }
-    ];
+		}
+	];
 
 	// call this to set the panel in the app, this performs some additional things & adds common transitions
 	var setPanel = function(panel, data, oncomplete) {
@@ -163,7 +170,7 @@ var createPluginSetupWizard = function() {
 				decorations[i]($base);
 			}
 		};
-		var html = panel($.extend({translations: translations}, data));
+		var html = panel($.extend({translations: translations, baseUrl: jenkins.baseUrl}, data));
 		if(panel === currentPanel) { // just replace id-marked elements
 			var $upd = $(html);
 			$upd.find('*[id]').each(function() {
@@ -241,25 +248,25 @@ var createPluginSetupWizard = function() {
 	// Initializes the set of installing plugins with pending statuses
 	var initInstallingPluginList = function() {
 		installingPlugins = [];
-        installingPlugins.names = [];
+		installingPlugins.names = [];
 		for (var i = 0; i < selectedPluginNames.length; i++) {
-            var pluginName = selectedPluginNames[i];
-            var p = availablePlugins[ pluginName];
+			var pluginName = selectedPluginNames[i];
+			var p = availablePlugins[ pluginName];
 			if (p) {
 				var plug = $.extend({
 					installStatus : 'pending'
 				}, p);
 				installingPlugins.push(plug);
 				installingPlugins[plug.name] = plug;
-                installingPlugins.names.push(pluginName);
+				installingPlugins.names.push(pluginName);
 			}
 		}
 	};
 
 	// call this to go install the selected set of plugins
-    var installPlugins = function(plugins) {
+	var installPlugins = function(plugins) {
 		pluginManager.installPlugins(plugins, handleGenericError(function() {
-            showInstallProgress();
+			showInstallProgress();
 		}));
 
 		setPanel(progressPanel, { installingPlugins : installingPlugins });
@@ -273,13 +280,25 @@ var createPluginSetupWizard = function() {
 	};
 
 	// Define actions
-	var showInstallProgress = function() {
-        initInstallingPluginList();
+	var showInstallProgress = function(state) {
+		if(state) {
+			if(/INITIAL_PLUGINS_INSTALLED|CONFIGURING_SECURITY/.test(state)) {
+				setupSecurity();
+				return;
+			}
+			if(/CREATING_ADMIN_USER/.test(state)) {
+				setupFirstUser();
+				return;
+			}
+		}
+		initInstallingPluginList();
 		setPanel(progressPanel, { installingPlugins : installingPlugins });
 
 		// call to the installStatus, update progress bar & plugin details; transition on complete
 		var updateStatus = function() {
-			pluginManager.installStatus(handleGenericError(function(jobs) {
+			pluginManager.installStatus(handleGenericError(function(data) {
+				var jobs = data.jobs;
+				
 				var i, j;
 				var complete = 0;
 				var total = 0;
@@ -369,10 +388,11 @@ var createPluginSetupWizard = function() {
 				else {
 					// mark complete
 					$('.progress-bar').css({width: '100%'});
-					setPanel(successPanel, {
-						installingPlugins : installingPlugins,
-						restartRequired: restartRequired
-					});
+					setupSecurity();
+					//setPanel(successPanel, {
+					//	installingPlugins : installingPlugins,
+					//	restartRequired: restartRequired
+					//});
 				}
 			}));
 		};
@@ -481,28 +501,28 @@ var createPluginSetupWizard = function() {
 	});
 
 	// walk the elements and search for the text
-    var walk = function(elements, element, text, xform) {
-        var i, child, n= element.childNodes.length;
-        for (i = 0; i<n; i++) {
-            child = element.childNodes[i];
-            if (child.nodeType===3 && xform(child.data).indexOf(text)!==-1) {
-                elements.push(element);
-                break;
-            }
-        }
-        for (i = 0; i<n; i++) {
-            child = element.childNodes[i];
-            if (child.nodeType === 1) {
-                walk(elements, child, text, xform);
-            }
-        }
-    };
+	var walk = function(elements, element, text, xform) {
+		var i, child, n= element.childNodes.length;
+		for (i = 0; i<n; i++) {
+			child = element.childNodes[i];
+			if (child.nodeType===3 && xform(child.data).indexOf(text)!==-1) {
+				elements.push(element);
+				break;
+			}
+		}
+		for (i = 0; i<n; i++) {
+			child = element.childNodes[i];
+			if (child.nodeType === 1) {
+				walk(elements, child, text, xform);
+			}
+		}
+	};
 
-    // find elements matching the given text, optionally transforming the text before match (e.g. you can .toLowerCase() it)
+	// find elements matching the given text, optionally transforming the text before match (e.g. you can .toLowerCase() it)
 	var findElementsWithText = function(ancestor, text, xform) {
-	    var elements= [];
-	    walk(elements, ancestor, text, xform ? xform : function(d){ return d; });
-	    return elements;
+		var elements= [];
+		walk(elements, ancestor, text, xform ? xform : function(d){ return d; });
+		return elements;
 	};
 
 	// search UI vars
@@ -613,6 +633,66 @@ var createPluginSetupWizard = function() {
 			$c.slideDown();
 		}
 	};
+	
+	// call to change to setup security
+	var setupSecurity = function() {
+		setPanel(securityPanel, {}, function() {
+			$('iframe[src]').load(function() {
+				var location = $(this).contents().get(0).location.href;
+				$('button').prop({disabled:false});
+			});
+		});
+	};
+	
+	var setupFirstUser = function() {
+		setPanel(firstUserPanel, {}, function() {
+			$('iframe[src]').load(function() {
+				var location = $(this).contents().get(0).location.href;
+				$('button').prop({disabled:false});
+			});
+		});
+	};
+	
+	// call to submit the security settings
+	var saveSecurity = function() {
+		securityConfig.saveSecurity($('iframe[src]').contents().find('form:not(.no-json)'), function(response) {
+			if(response.data.requiresLocalUser) {
+				setupFirstUser();
+			}
+			else {
+				setPanel(setupCompletePanel);
+			}
+		});
+	};
+	
+	var testSecurity = function() {
+		// doTestAuthentication
+		securityConfig.testAuthentication($('iframe[src]').contents().find('form:not(.no-json)'), function() {
+			
+		});
+	};
+	
+	// call to submit the firstuser
+	var saveFirstUser = function() {
+		securityConfig.saveFirstUser($('iframe[src]').contents().find('form:not(.no-json)'), function(data) {
+			// we get 200 OK
+			var $page = $(data);
+			var $errors = $page.find('.error');
+			if($errors.length > 0) {
+				var $main = $page.find('#main-panel').detach();
+				if($main.length > 0) {
+					data = data.replace(/body([^>]*)[>](.|[\r\n])+[<][/]body/,'body$1>'+$main.html()+'</body');
+				}
+				var doc = $('iframe[src]').contents()[0];
+				doc.open();
+				doc.write(data);
+				doc.close();
+			}
+			else {
+				setPanel(setupCompletePanel);
+			}
+		});
+	};
 
 	// Call this to resume an installation after restart
 	var resumeInstallation = function() {
@@ -682,7 +762,10 @@ var createPluginSetupWizard = function() {
 		'.select-category': selectCategory,
 		'.close': closeInstaller,
 		'.resume-installation': resumeInstallation,
-		'.install-done-restart': restartJenkins
+		'.install-done-restart': restartJenkins,
+		'.setup-security': setupSecurity,
+		'.save-security:not([disabled])': saveSecurity,
+		'.save-first-user:not([disabled])': saveFirstUser
 	};
 	for(var cls in actions) {
 		bindClickHandler(cls, actions[cls]);
@@ -703,26 +786,28 @@ var createPluginSetupWizard = function() {
 			}
 
 			// check for updates when first loaded...
-			pluginManager.installStatus(handleGenericError(function(jobs) {
+			pluginManager.installStatus(handleGenericError(function(data) {
+				var jobs = data.jobs;
+				
 				if(jobs.length > 0) {
-                    if (installingPlugins.length === 0) {
-                        // This can happen on a page reload if we are in the middle of
-                        // an install. So, lets get a list of plugins being installed at the
-                        // moment and use that as the "selectedPlugins" list.
-                        selectedPluginNames = [];
-                        loadPluginData(handleGenericError(function() {
-                            for (var i = 0; i < jobs.length; i++) {
-                                // If the job does not have a 'correlationId', then it was not selected
-                                // by the user for install i.e. it's probably a dependency plugin.
-                                if (jobs[i].correlationId) {
-                                    selectedPluginNames.push(jobs[i].name);
-                                }
-                            }
-						showInstallProgress();
-                        }));
-                    } else {
-                        showInstallProgress();
-                    }
+					if (installingPlugins.length === 0) {
+						// This can happen on a page reload if we are in the middle of
+						// an install. So, lets get a list of plugins being installed at the
+						// moment and use that as the "selectedPlugins" list.
+						selectedPluginNames = [];
+						loadPluginData(handleGenericError(function() {
+							for (var i = 0; i < jobs.length; i++) {
+								// If the job does not have a 'correlationId', then it was not selected
+								// by the user for install i.e. it's probably a dependency plugin.
+								if (jobs[i].correlationId) {
+									selectedPluginNames.push(jobs[i].name);
+								}
+							}
+						showInstallProgress(data.state);
+						}));
+					} else {
+						showInstallProgress(data.state);
+					}
 					return;
 				}
 
@@ -740,12 +825,12 @@ var createPluginSetupWizard = function() {
 
 							for(var plugName in incompleteStatus) {
 								var j = installingPlugins[plugName];
-                                
-                                if (!j) {
-                                    console.warn('Plugin "' + plugName + '" not found in the list of installing plugins.');
-                                    console.warn('\tInstalling plugins: ' + installingPlugins.names);                                    
-                                    continue;
-                                }
+								
+								if (!j) {
+									console.warn('Plugin "' + plugName + '" not found in the list of installing plugins.');
+									console.warn('\tInstalling plugins: ' + installingPlugins.names);									
+									continue;
+								}
 
 								var txt = false;
 								var state = false;

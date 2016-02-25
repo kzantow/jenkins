@@ -58,6 +58,8 @@ import jenkins.install.InstallUtil;
 import jenkins.model.Jenkins;
 import jenkins.util.io.OnMaster;
 import net.sf.json.JSONArray;
+import net.sf.json.JSONObject;
+
 import org.acegisecurity.Authentication;
 import org.acegisecurity.context.SecurityContext;
 import org.apache.commons.codec.binary.Base64;
@@ -87,6 +89,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -131,7 +134,7 @@ import org.kohsuke.stapler.interceptor.RequirePOST;
  */
 @ExportedBean
 public class UpdateCenter extends AbstractModelObject implements Saveable, OnMaster {
-	
+
     private static final String UPDATE_CENTER_URL = System.getProperty(UpdateCenter.class.getName()+".updateCenterUrl","http://updates.jenkins-ci.org/");
 
     /**
@@ -142,7 +145,7 @@ public class UpdateCenter extends AbstractModelObject implements Saveable, OnMas
 
     @Restricted(NoExternalUse.class)
     public static final String ID_UPLOAD = "_upload";
-	
+
     /**
      * {@link ExecutorService} that performs installation.
      * @since 1.501
@@ -155,7 +158,7 @@ public class UpdateCenter extends AbstractModelObject implements Saveable, OnMas
      */
     protected final ExecutorService updateService = Executors.newCachedThreadPool(
         new NamingThreadFactory(new DaemonThreadFactory(), "Update site data downloader"));
-        
+
     /**
      * List of created {@link UpdateCenterJob}s. Access needs to be synchronized.
      */
@@ -316,11 +319,11 @@ public class UpdateCenter extends AbstractModelObject implements Saveable, OnMas
      */
     @Restricted(DoNotUse.class) // WebOnly
     public HttpResponse doCompleteInstall() {
-	if(isRestartRequiredForCompletion()) {
-		Jenkins.getActiveInstance().setInstallState(InstallState.RESTART);
-	}
+        if(isRestartRequiredForCompletion()) {
+            Jenkins.getActiveInstance().setInstallState(InstallState.RESTART);
+        }
         InstallUtil.saveLastExecVersion();
-        Jenkins.getActiveInstance().setInstallState(InstallState.INITIAL_PLUGINS_INSTALLED);
+        Jenkins.getActiveInstance().setInstallState(InstallState.INITIAL_SETUP_COMPLETED);
         return HttpResponses.okJSON();
     }
 
@@ -330,10 +333,10 @@ public class UpdateCenter extends AbstractModelObject implements Saveable, OnMas
     @Restricted(DoNotUse.class) // WebOnly
     public HttpResponse doIncompleteInstallStatus() {
         try {
-		Map<String,String> jobs = InstallUtil.getPersistedInstallStatus();
-		if(jobs == null) {
-			jobs = Collections.emptyMap();
-		}
+        Map<String,String> jobs = InstallUtil.getPersistedInstallStatus();
+        if(jobs == null) {
+            jobs = Collections.emptyMap();
+        }
             return HttpResponses.okJSON(jobs);
         } catch (Exception e) {
             return HttpResponses.errorJSON(String.format("ERROR: %s", e.getMessage()));
@@ -353,16 +356,16 @@ public class UpdateCenter extends AbstractModelObject implements Saveable, OnMas
             if (job instanceof InstallationJob) {
                 InstallationJob installationJob = (InstallationJob) job;
                 if(!installationJob.status.isSuccess()) {
-			activeInstalls = true;
+            activeInstalls = true;
                 }
             }
         }
 
         if(activeInstalls) {
-		InstallUtil.persistInstallStatus(jobs); // save this info
+        InstallUtil.persistInstallStatus(jobs); // save this info
         }
         else {
-		InstallUtil.clearInstallStatus(); // clear this info
+        InstallUtil.clearInstallStatus(); // clear this info
         }
     }
 
@@ -379,7 +382,10 @@ public class UpdateCenter extends AbstractModelObject implements Saveable, OnMas
     public HttpResponse doInstallStatus(StaplerRequest request) {
         try {
             String correlationId = request.getParameter("correlationId");
+            Map<String,Object> response = new HashMap<>();
+            response.put("state", Jenkins.getInstance().getInstallState().name());
             List<Map<String, String>> installStates = new ArrayList<>();
+            response.put("jobs", installStates);
             List<UpdateCenterJob> jobCopy = getJobs();
 
             for (UpdateCenterJob job : jobCopy) {
@@ -400,7 +406,7 @@ public class UpdateCenter extends AbstractModelObject implements Saveable, OnMas
                     }
                 }
             }
-            return HttpResponses.okJSON(JSONArray.fromObject(installStates));
+            return HttpResponses.okJSON(JSONObject.fromObject(response));
         } catch (Exception e) {
             return HttpResponses.errorJSON(String.format("ERROR: %s", e.getMessage()));
         }
@@ -558,7 +564,7 @@ public class UpdateCenter extends AbstractModelObject implements Saveable, OnMas
         }
         response.sendRedirect2(".");
     }
-    
+
     /**
      * Cancel all scheduled jenkins restarts
      */
@@ -845,16 +851,16 @@ public class UpdateCenter extends AbstractModelObject implements Saveable, OnMas
 
         return new ArrayList<Plugin>(pluginMap.values());
     }
-    
+
     /**
      * Ensure that all UpdateSites are up to date, without requiring a user to
      * browse to the instance.
-     * 
+     *
      * @return a list of {@link FormValidation} for each updated Update Site
-     * @throws ExecutionException 
-     * @throws InterruptedException 
+     * @throws ExecutionException
+     * @throws InterruptedException
      * @since 1.501
-     * 
+     *
      */
     public List<FormValidation> updateAllSites() throws InterruptedException, ExecutionException {
         List <Future<FormValidation>> futures = new ArrayList<Future<FormValidation>>();
@@ -864,8 +870,8 @@ public class UpdateCenter extends AbstractModelObject implements Saveable, OnMas
                 futures.add(future);
             }
         }
-        
-        List<FormValidation> results = new ArrayList<FormValidation>(); 
+
+        List<FormValidation> results = new ArrayList<FormValidation>();
         for (Future<FormValidation> f : futures) {
             results.add(f.get());
         }
@@ -1211,7 +1217,7 @@ public class UpdateCenter extends AbstractModelObject implements Saveable, OnMas
         public String getErrorMessage() {
             return error != null ? error.getMessage() : null;
         }
-        
+
         public Throwable getError() {
             return error;
         }
@@ -1226,10 +1232,10 @@ public class UpdateCenter extends AbstractModelObject implements Saveable, OnMas
          */
          @Exported(inline=true)
         public volatile RestartJenkinsJobStatus status = new Pending();
-        
+
         /**
          * Cancel job
-         */     
+         */
         public synchronized boolean cancel() {
             if (status instanceof Pending) {
                 status = new Canceled();
@@ -1237,7 +1243,7 @@ public class UpdateCenter extends AbstractModelObject implements Saveable, OnMas
             }
             return false;
         }
-        
+
         public RestartJenkinsJob(UpdateSite site) {
             super(site);
         }
@@ -1260,26 +1266,26 @@ public class UpdateCenter extends AbstractModelObject implements Saveable, OnMas
         public abstract class RestartJenkinsJobStatus {
             @Exported
             public final int id = iota.incrementAndGet();
-   
+
         }
-        
+
         public class Pending extends RestartJenkinsJobStatus {
             @Exported
             public String getType() {
                 return getClass().getSimpleName();
             }
         }
-        
+
         public class Running extends RestartJenkinsJobStatus {
-            
+
         }
-        
+
         public class Failure extends RestartJenkinsJobStatus {
-            
+
         }
-        
+
         public class Canceled extends RestartJenkinsJobStatus {
-            
+
         }
     }
 
@@ -1603,7 +1609,7 @@ public class UpdateCenter extends AbstractModelObject implements Saveable, OnMas
             File baseDir = pm.rootDir;
             return new File(baseDir, plugin.name + ".jpi");
         }
-        
+
         private File getLegacyDestination() {
             File baseDir = pm.rootDir;
             return new File(baseDir, plugin.name + ".hpi");
@@ -1649,7 +1655,7 @@ public class UpdateCenter extends AbstractModelObject implements Saveable, OnMas
         public String toString() {
             return super.toString()+"[plugin="+plugin.title+"]";
         }
-        
+
         /**
          * Called when the download is completed to overwrite
          * the old file with the new file.
@@ -1704,7 +1710,7 @@ public class UpdateCenter extends AbstractModelObject implements Saveable, OnMas
             File baseDir = pm.rootDir;
             final File legacy = new File(baseDir, plugin.name + ".hpi");
             if(legacy.exists()){
-            	return legacy;
+                return legacy;
             }
             return new File(baseDir, plugin.name + ".jpi");
         }

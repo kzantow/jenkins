@@ -1,18 +1,18 @@
 /*
  * The MIT License
- * 
+ *
  * Copyright (c) 2004-2009, Sun Microsystems, Inc., Kohsuke Kawaguchi, Jean-Baptiste Quenot, Tom Huybrechts
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -28,6 +28,9 @@ import com.thoughtworks.xstream.core.JVM;
 import com.trilead.ssh2.util.IOUtils;
 import hudson.model.Hudson;
 import hudson.util.BootFailure;
+import jenkins.install.InstallState;
+import jenkins.install.InstallUtil;
+import jenkins.install.SetupWizard;
 import jenkins.model.Jenkins;
 import hudson.util.HudsonIsLoading;
 import hudson.util.IncompatibleServletVersionDetected;
@@ -81,7 +84,7 @@ public class WebAppMain implements ServletContextListener {
             }
         }
     };
-    private static final String APP = "app";
+    public static final String APP = "app";
     private boolean terminated;
     private Thread initThread;
 
@@ -223,7 +226,19 @@ public class WebAppMain implements ServletContextListener {
                     boolean success = false;
                     try {
                         Jenkins instance = new Hudson(_home, context);
-                        context.setAttribute(APP, instance);
+                        // some initialization is necessary
+                        instance.initPreSetupTasks();
+
+                        // Start immediately with the setup wizard for new installs
+                        if (InstallState.NEW.equals(InstallUtil.getInstallState())) {
+                            context.setAttribute(APP, new SetupWizard(_home, context, instance.getPluginManager()));
+                        } else {
+                            context.setAttribute(APP, instance);
+                            // only proceed with other initialization
+                            // after determining this is not an
+                            // initial install
+                            instance.initPostSetupTasks();
+                        }
 
                         BootFailure.getBootFailureFile(_home).delete();
 
@@ -305,7 +320,7 @@ public class WebAppMain implements ServletContextListener {
         JellyFacet.setExpressionFactory(event, new ExpressionFactory2());
     }
 
-	/**
+    /**
      * Installs log handler to monitor all Hudson logs.
      */
     @edu.umd.cs.findbugs.annotations.SuppressWarnings("LG_LOST_LOGGER_DUE_TO_WEAK_REFERENCE")
@@ -333,7 +348,7 @@ public class WebAppMain implements ServletContextListener {
      * <p>
      * People makes configuration mistakes, so we are trying to be nice
      * with those by doing {@link String#trim()}.
-     * 
+     *
      * <p>
      * @return the File alongside with some description to help the user troubleshoot issues
      */

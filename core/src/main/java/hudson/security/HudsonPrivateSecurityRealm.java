@@ -1,18 +1,18 @@
 /*
  * The MIT License
- * 
+ *
  * Copyright (c) 2004-2010, Sun Microsystems, Inc., Kohsuke Kawaguchi, David Calavera, Seiji Sogabe
- * 
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
  * copies of the Software, and to permit persons to whom the Software is
  * furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be included in
  * all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -27,14 +27,18 @@ import com.thoughtworks.xstream.converters.UnmarshallingContext;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.Util;
+import hudson.WebAppMain;
 import hudson.diagnosis.OldDataMonitor;
 import hudson.model.Descriptor;
+import jenkins.install.InstallState;
+import jenkins.install.SetupWizard;
 import jenkins.model.Jenkins;
 import hudson.model.ManagementLink;
 import hudson.model.ModelObject;
 import hudson.model.User;
 import hudson.model.UserProperty;
 import hudson.model.UserPropertyDescriptor;
+import hudson.security.AuthorizationStrategy.Unsecured;
 import hudson.security.FederatedLoginService.FederatedIdentity;
 import hudson.security.captcha.CaptchaSupport;
 import hudson.util.PluginServletFilter;
@@ -97,7 +101,7 @@ public class HudsonPrivateSecurityRealm extends AbstractPasswordBasedSecurityRea
     /**
      * If true, sign up is not allowed.
      * <p>
-     * This is a negative switch so that the default value 'false' remains compatible with older installations. 
+     * This is a negative switch so that the default value 'false' remains compatible with older installations.
      */
     private final boolean disableSignup;
 
@@ -283,9 +287,16 @@ public class HudsonPrivateSecurityRealm extends AbstractPasswordBasedSecurityRea
             rsp.sendError(SC_UNAUTHORIZED,"First user was already created");
             return;
         }
-        User u = createAccount(req, rsp, false, "firstUser.jelly");
+        String view = "firstUser.jelly";
+        String referer = req.getReferer();
+        if(referer != null && referer.matches(".*(firstUserDirect).*")
+                || InstallState.CREATING_ADMIN_USER.equals(Jenkins.getInstance().getInstallState())) {
+            view = "firstUserDirect.jelly";
+        }
+        User u = createAccount(req, rsp, false, view);
         if (u!=null) {
             tryToMakeAdmin(u);
+            Jenkins.getInstance().setInstallState(InstallState.ADMIN_USER_CREATED);
             loginAndTakeBack(req, rsp, u);
         }
     }
@@ -705,7 +716,8 @@ public class HudsonPrivateSecurityRealm extends AbstractPasswordBasedSecurityRea
             HttpServletRequest req = (HttpServletRequest) request;
 
             /* allow signup from the Jenkins home page, or /manage, which is where a /configureSecurity form redirects to */
-            if(req.getRequestURI().equals(req.getContextPath()+"/") || req.getRequestURI().equals(req.getContextPath() + "/manage")) {
+            if((req.getRequestURI().equals(req.getContextPath()+"/") || req.getRequestURI().equals(req.getContextPath() + "/manage"))
+                    && !(Jenkins.getInstance().servletContext.getAttribute(WebAppMain.APP) instanceof SetupWizard)) { // also skip during the setup wizard
                 if (needsToCreateFirstUser()) {
                     ((HttpServletResponse)response).sendRedirect("securityRealm/firstUser");
                 } else {// the first user already created. the role of this filter is over.
@@ -726,4 +738,13 @@ public class HudsonPrivateSecurityRealm extends AbstractPasswordBasedSecurityRea
     };
 
     private static final Logger LOGGER = Logger.getLogger(HudsonPrivateSecurityRealm.class.getName());
+
+    /**
+     * Indicates whether the security settings require a local user
+     * @return true if a local user is required - e.g. must have an admin user
+     */
+    public static boolean requiresLocalUser(Jenkins j) {
+        return j.getSecurityRealm() instanceof HudsonPrivateSecurityRealm
+            && !(j.getAuthorizationStrategy() instanceof Unsecured);
+    }
 }

@@ -47,6 +47,22 @@ public enum InstallState {
      */
     INITIAL_PLUGINS_INSTALLED,
     /**
+     * Configuring security of an initial Jenkins install.
+     */
+    CONFIGURING_SECURITY,
+    /**
+     * Security configuration has been completed
+     */
+    SECURITY_CONFIGURATION_COMPLETED,
+    /**
+     * Creating an admin user for an initial Jenkins install.
+     */
+    CREATING_ADMIN_USER,
+    /**
+     * Admin user has been created
+     */
+    ADMIN_USER_CREATED,
+    /**
      * Restart of an existing Jenkins install.
      */
     RESTART,
@@ -61,5 +77,9 @@ public enum InstallState {
     /**
      * Jenkins started in test mode (JenkinsRule).
      */
-    TEST
+    TEST,
+    /**
+     * The initial set up has been completed
+     */
+    INITIAL_SETUP_COMPLETED
 }

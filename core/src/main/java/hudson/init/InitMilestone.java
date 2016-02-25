@@ -37,7 +37,7 @@ import org.jvnet.hudson.reactor.TaskGraphBuilder;
  *
  * <p>
  * These milestones are achieve in this order.
- * 
+ *
  * @author Kohsuke Kawaguchi
  */
 public enum InitMilestone implements Milestone {
@@ -100,7 +100,7 @@ public enum InitMilestone implements Milestone {
         TaskGraphBuilder b = new TaskGraphBuilder();
         InitMilestone[] v = values();
         for (int i=0; i<v.length-1; i++)
-            b.add(null, Executable.NOOP).requires(v[i]).attains(v[i+1]);
+            b.add("ORDER: " + v[i] + " -> " + v[i+1], Executable.NOOP).requires(v[i]).attains(v[i+1]);
         return b;
     }
 
