@@ -428,6 +428,11 @@ public class Jenkins extends AbstractCIBase implements DirectlyModifiableTopLeve
     private transient volatile InitMilestone initLevel = InitMilestone.STARTED;
 
     /**
+     * The init strategy currently being executed if null, a default will be completed
+     */
+    private transient SplitInitStrategy initStrategy;
+
+    /**
      * All {@link Item}s keyed by their {@link Item#getName() name}s.
      */
     /*package*/ transient final Map<String,TopLevelItem> items = new CopyOnWriteMap.Tree<String,TopLevelItem>(CaseInsensitiveComparator.INSTANCE);
@@ -779,6 +784,28 @@ public class Jenkins extends AbstractCIBase implements DirectlyModifiableTopLeve
                 workspaceDir = "${JENKINS_HOME}/workspace/${ITEM_FULLNAME}";
             }
 
+            // doing this early allows InitStrategy to set environment upfront
+            final InitStrategy defaultInitStrategy = InitStrategy.get(Thread.currentThread().getContextClassLoader());
+            if (InstallState.TEST.equals(installState)) {
+                // this will recreate the original behavior
+                initStrategy = new SplitInitStrategy(
+                        defaultInitStrategy, // delegate to the base init strategy
+                        null) { // run all
+                    @Override
+                    public boolean skipInitTask(Task task) {
+                        return delegate.skipInitTask(task);
+                    }
+                    @Override
+                    public TaskBuilder[] continueInitialization() throws IOException {
+                        return taskBuilders;
+                    }
+                };
+            } else {
+                initStrategy = new SplitInitStrategy(
+                        defaultInitStrategy, // delegate to the base init strategy
+                        InitMilestone.PLUGINS_STARTED); // This ensures UpdateCenter.init has completed
+            }
+
             Trigger.timer = new java.util.Timer("Jenkins cron thread");
             queue = new Queue(LoadBalancer.CONSISTENT_HASH);
 
@@ -819,24 +846,17 @@ public class Jenkins extends AbstractCIBase implements DirectlyModifiableTopLeve
             // JSON binding needs to be able to see all the classes from all the plugins
             WebApp.get(servletContext).setClassLoader(pluginManager.uberClassLoader);
 
-            // doing this early allows InitStrategy to set environment upfront
-            initStrategy = new SplitInitStrategy(
-                InitStrategy.get(Thread.currentThread().getContextClassLoader()), // delegate to the base init strategy
-                InitMilestone.PLUGINS_STARTED); // This ensures UpdateCenter.init has completed
+            adjuncts = new AdjunctManager(servletContext, pluginManager.uberClassLoader,"adjuncts/"+SESSION_HASH, TimeUnit2.DAYS.toMillis(365));
 
-            initStrategy.setTaskBuilders(
+            initStrategy.withTaskBuilders(
                 // initialization consists of ...
-                pluginManager.initTasks(initStrategy),    // loading and preparing plugins
+                pluginManager.initTasks(defaultInitStrategy),    // loading and preparing plugins
                 loadTasks(),                    // load jobs
                 InitMilestone.ordering()        // forced ordering among key milestones
             );
 
-            adjuncts = new AdjunctManager(servletContext, pluginManager.uberClassLoader,"adjuncts/"+SESSION_HASH, TimeUnit2.DAYS.toMillis(365));
-
-            if(installState == InstallState.TEST) {
-                // do all the initialization during tests
-                initPreSetupTasks();
-                initPostSetupTasks();
+            if (InstallState.TEST.equals(installState)) {
+                initPostSetupTasks(); // this will run everything, as it was before
             }
 
             if (LOG_STARTUP_PERFORMANCE)
@@ -848,23 +868,20 @@ public class Jenkins extends AbstractCIBase implements DirectlyModifiableTopLeve
     }
 
     protected void setGlobalInstance(Jenkins jenkins) {
-        if(theInstance != null)
+        if (theInstance != null)
             throw new IllegalStateException("second instance");
         theInstance = jenkins;
 	}
 
-    // doing this early allows InitStrategy to set environment upfront
-    private transient SplitInitStrategy initStrategy;
-
+    /**
+     * Perform basic initialization needed for a functioning setup wizard
+     */
     public void initPreSetupTasks() throws IOException, InterruptedException, ReactorException {
         executeReactor( initStrategy, initStrategy.getTaskBuilders() );
     }
 
 	/**
      * Perform the actual Jenkins initialization
-     * @throws IOException
-     * @throws ReactorException
-     * @throws InterruptedException
      */
     public void initPostSetupTasks() throws IOException, InterruptedException, ReactorException {
         // continue initialization, skipping tasks which have already run
@@ -916,6 +933,7 @@ public class Jenkins extends AbstractCIBase implements DirectlyModifiableTopLeve
         // All plugins are loaded. Now we can figure out who depends on who.
         resolveDependantPlugins();
 
+        initStrategy = null; // this init strategy has completed, reset to default
     }
 
     private void resolveDependantPlugins() throws InterruptedException, ReactorException, IOException {
@@ -956,11 +974,17 @@ public class Jenkins extends AbstractCIBase implements DirectlyModifiableTopLeve
      */
     @Restricted(NoExternalUse.class)
     public void setInstallState(@Nonnull InstallState newState) {
+        if(newState.equals(installState)) {
+            return; // no change, nothing to do
+        }
+        if(InstallState.INITIAL_SETUP_COMPLETED.equals(installState)) {
+            throw new IllegalArgumentException("Setup has already been completed!");
+        }
         installState = newState;
         try {
             switch(newState) {
             case INITIAL_PLUGINS_INSTALLED:
-                //initPostSetupTasks(); // is this necessary here?
+                setInstallState(InstallState.CONFIGURING_SECURITY);
                 break;
             case SECURITY_CONFIGURATION_COMPLETED:
                 // Do we need to create a user?
@@ -2272,25 +2296,29 @@ public class Jenkins extends AbstractCIBase implements DirectlyModifiableTopLeve
         IdStrategy oldUserIdStrategy = this.securityRealm == null
                 ? securityRealm.getUserIdStrategy() // don't trigger rekey on Jenkins load
                 : this.securityRealm.getUserIdStrategy();
-        this.securityRealm = securityRealm;
-        // reset the filters and proxies for the new SecurityRealm
-        try {
-            HudsonFilter filter = HudsonFilter.get(servletContext);
-            if (filter == null) {
-                // Fix for #3069: This filter is not necessarily initialized before the servlets.
-                // when HudsonFilter does come back, it'll initialize itself.
-                LOGGER.fine("HudsonFilter has not yet been initialized: Can't perform security setup for now");
-            } else {
-                LOGGER.fine("HudsonFilter has been previously initialized: Setting security up");
-                filter.reset(securityRealm);
-                LOGGER.fine("Security is now fully set up");
+
+        if(installState == InstallState.TEST
+                || !securityRealm.equals(this.securityRealm)) { // if the realm has changed, reset filters
+            this.securityRealm = securityRealm;
+            // reset the filters and proxies for the new SecurityRealm
+            try {
+                HudsonFilter filter = HudsonFilter.get(servletContext);
+                if (filter == null) {
+                    // Fix for #3069: This filter is not necessarily initialized before the servlets.
+                    // when HudsonFilter does come back, it'll initialize itself.
+                    LOGGER.fine("HudsonFilter has not yet been initialized: Can't perform security setup for now");
+                } else {
+                    LOGGER.fine("HudsonFilter has been previously initialized: Setting security up");
+                    filter.reset(securityRealm);
+                    LOGGER.fine("Security is now fully set up");
+                }
+                if (!oldUserIdStrategy.equals(this.securityRealm.getUserIdStrategy())) {
+                    User.rekey();
+                }
+            } catch (ServletException e) {
+                // for binary compatibility, this method cannot throw a checked exception
+                throw new AcegiSecurityException("Failed to configure filter",e) {};
             }
-            if (!oldUserIdStrategy.equals(this.securityRealm.getUserIdStrategy())) {
-                User.rekey();
-            }
-        } catch (ServletException e) {
-            // for binary compatibility, this method cannot throw a checked exception
-            throw new AcegiSecurityException("Failed to configure filter",e) {};
         }
     }
 

@@ -23,11 +23,11 @@ import jenkins.model.Jenkins;
 public class SplitInitStrategy extends InitStrategy {
     private static final Logger LOGGER = Logger.getLogger(SplitInitStrategy.class.getName());
 
-    private InitStrategy delegate;
-    private InitMilestone milestone;
-    private Set<Task> executed = new HashSet<Task>();
-    private Set<Task> skipped = new HashSet<Task>();
-    private TaskBuilder[] taskBuilders;
+    protected InitStrategy delegate;
+    protected InitMilestone milestone;
+    protected Set<Task> executed = new HashSet<Task>();
+    protected Set<Task> skipped = new HashSet<Task>();
+    protected TaskBuilder[] taskBuilders;
 
     public SplitInitStrategy(InitStrategy delegate, InitMilestone milestone, TaskBuilder ... taskBuilders) {
         this.delegate = delegate;
@@ -38,7 +38,7 @@ public class SplitInitStrategy extends InitStrategy {
     /**
      * Continues initialization, re-running any skipped tasks
      */
-    public TaskBuilder[] continueInitialization() {
+    public TaskBuilder[] continueInitialization() throws IOException {
         return continueInitialization(null);
     }
 
@@ -66,12 +66,20 @@ public class SplitInitStrategy extends InitStrategy {
         return delegate.listPluginArchives(pm);
     }
 
+    /**
+     * Underlying InitStrategy
+     */
+    public InitStrategy getDelegate() {
+        return delegate;
+    }
+
     public TaskBuilder[] getTaskBuilders() {
         return taskBuilders;
     }
 
-    public void setTaskBuilders(TaskBuilder ... taskBuilders) {
+    public SplitInitStrategy withTaskBuilders(TaskBuilder ... taskBuilders) {
         this.taskBuilders = taskBuilders;
+        return this;
     }
 
     /**

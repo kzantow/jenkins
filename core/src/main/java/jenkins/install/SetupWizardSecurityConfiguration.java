@@ -11,7 +11,6 @@ import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 
 import hudson.BulkChange;
-import hudson.Extension;
 import hudson.model.Descriptor;
 import hudson.model.Descriptor.FormException;
 import hudson.security.FullControlOnceLoggedInAuthorizationStrategy;
@@ -24,7 +23,6 @@ import jenkins.model.Jenkins;
 /**
  * A custom global security configuration, which uses a different Jenkins instance
  */
-@Extension
 public class SetupWizardSecurityConfiguration extends GlobalSecurityConfiguration {
     Jenkins jenkins;
 
@@ -102,7 +100,6 @@ public class SetupWizardSecurityConfiguration extends GlobalSecurityConfiguratio
         }
     }
 
-    @Extension
     public static class DescriptorImpl extends GlobalSecurityConfiguration.DescriptorImpl {
     }
 }
