@@ -26,7 +26,7 @@ l.html(norefresh:true, permission:app.instance.ADMINISTER, title:my.displayName)
                 padding-bottom: 2px;
             }
             body {
-                padding: 20px 20px 20px 100px;
+                padding: 20px 60px;
                 font-family: 'roboto';
             }
             h1 {

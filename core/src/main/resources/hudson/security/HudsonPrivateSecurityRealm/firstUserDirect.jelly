@@ -37,9 +37,10 @@
           line-height: 25px;
           margin-bottom: 6px;
       }
-      input[type=text] {
-        border: 1px solid #ddd;
-        border-radius: 2px;
+      input[type=text], input[type=password] {
+          border: 1px solid #ddd;
+          border-radius: 2px;
+          padding: 1px 8px;
       }
     </style>
     <form action="${rootURL}/securityRealm/${action}" method="post">

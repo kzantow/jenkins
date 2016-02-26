@@ -226,19 +226,23 @@ public class WebAppMain implements ServletContextListener {
                     boolean success = false;
                     try {
                         Jenkins instance = new Hudson(_home, context);
-                        // some initialization is necessary
-                        instance.initPreSetupTasks();
 
-                        // Start immediately with the setup wizard for new installs
-                        if (InstallState.NEW.equals(InstallUtil.getInstallState())) {
-                            context.setAttribute(APP, new SetupWizard(_home, context, instance.getPluginManager()));
-                        } else {
-                            context.setAttribute(APP, instance);
-                            // only proceed with other initialization
-                            // after determining this is not an
-                            // initial install
-                            instance.initPostSetupTasks();
+                        if(!InstallState.TEST.equals(InstallUtil.getInstallState())) {
+                            // some initialization is necessary
+                            instance.initPreSetupTasks();
+
+                            // Start immediately with the setup wizard for new installs
+                            if (InstallState.NEW.equals(InstallUtil.getInstallState())) {
+                                instance = new SetupWizard(_home, context, instance.getPluginManager());
+                            } else {
+                                // only proceed with other initialization
+                                // after determining this is not an
+                                // initial install
+                                instance.initPostSetupTasks();
+                            }
                         }
+
+                        context.setAttribute(APP, instance);
 
                         BootFailure.getBootFailureFile(_home).delete();
 

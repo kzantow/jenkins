@@ -5,6 +5,7 @@ import java.io.IOException;
 import org.jvnet.hudson.reactor.ReactorException;
 
 import hudson.model.Hudson;
+import hudson.security.SecurityRealm;
 import jenkins.model.Jenkins;
 
 /**
@@ -12,6 +13,9 @@ import jenkins.model.Jenkins;
  * as the global instance
  */
 public class TransientJenkins extends Hudson {
+    private boolean useSecurity = false;
+    private SecurityRealm securityRealm;
+
     public TransientJenkins(Jenkins base) throws IOException, InterruptedException, ReactorException {
         super(base.getRootDir(), base.servletContext, base.getPluginManager());
     }
@@ -30,6 +34,22 @@ public class TransientJenkins extends Hudson {
     @Override
     public synchronized void save() throws IOException {
         // also, don't really save
+    }
+
+    /**
+     * Does NOT reset security in the filters when set here
+     */
+    @Override
+    public void setSecurityRealm(SecurityRealm securityRealm) {
+        if(securityRealm==null)
+            securityRealm= SecurityRealm.NO_AUTHENTICATION;
+        this.useSecurity = true;
+        this.securityRealm = securityRealm;
+    }
+
+    @Override
+    public SecurityRealm getSecurityRealm() {
+        return securityRealm;
     }
 
     /**

@@ -8,6 +8,7 @@ import java.util.logging.Logger;
 
 import javax.servlet.ServletContext;
 
+import org.apache.commons.lang.NotImplementedException;
 import org.jvnet.hudson.reactor.ReactorException;
 import org.kohsuke.stapler.framework.adjunct.AdjunctManager;
 
@@ -135,6 +136,11 @@ public class SetupWizard extends Hudson {
     @Override
     public SecurityRealm getSecurityRealm() {
         return Jenkins.getInstance().getSecurityRealm();
+    }
+
+    @Override
+    public void setSecurityRealm(SecurityRealm securityRealm) {
+        throw new NotImplementedException();
     }
 
     public GlobalSecurityConfiguration getConfigureSecurity() {
