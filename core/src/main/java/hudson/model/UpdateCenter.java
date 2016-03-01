@@ -315,19 +315,6 @@ public class UpdateCenter extends AbstractModelObject implements Saveable, OnMas
     }
 
     /**
-     * Called to bypass install wizard
-     */
-    @Restricted(DoNotUse.class) // WebOnly
-    public HttpResponse doCompleteInstall() {
-        if(isRestartRequiredForCompletion()) {
-            Jenkins.getActiveInstance().setInstallState(InstallState.RESTART);
-        }
-        InstallUtil.saveLastExecVersion();
-        Jenkins.getActiveInstance().setInstallState(InstallState.INITIAL_SETUP_COMPLETED);
-        return HttpResponses.okJSON();
-    }
-
-    /**
      * Called to determine if there was an incomplete installation, what the statuses of the plugins are
      */
     @Restricted(DoNotUse.class) // WebOnly
