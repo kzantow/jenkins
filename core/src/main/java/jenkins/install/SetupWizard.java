@@ -1,23 +1,24 @@
 package jenkins.install;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 import java.util.logging.Logger;
 
-import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
 
-import org.apache.commons.lang.NotImplementedException;
 import org.jvnet.hudson.reactor.ReactorException;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
+import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.StaplerResponse;
 import org.kohsuke.stapler.framework.adjunct.AdjunctManager;
 
-import hudson.Plugin;
 import hudson.PluginManager;
 import hudson.model.Action;
 import hudson.model.Describable;
 import hudson.model.Descriptor;
-import hudson.model.Hudson;
+import hudson.model.DescriptorByNameOwner;
 import hudson.model.UpdateCenter;
 import hudson.model.View;
 import hudson.security.AuthorizationStrategy;
@@ -32,23 +33,20 @@ import jenkins.model.Jenkins;
  * A Jenkins instance used during first-run to provide a limited set of services while
  * initial installation is in progress
  */
-public class SetupWizard extends Hudson {
+public class SetupWizard implements DescriptorByNameOwner {
     private final Logger LOGGER = Logger.getLogger(Jenkins.class.getName());
-    private ServletContext context;
     private String randomUUID;
     private AssetManager assetManager = new AssetManager();
     private I18n i18n = new I18n();
     private SetupWizardSecurityConfiguration securityConfiguration = new SetupWizardSecurityConfiguration();;
 
-    public SetupWizard(File root, ServletContext context, PluginManager pluginManager) throws IOException, InterruptedException, ReactorException {
-        super(root, context, pluginManager);
-        this.context = context;
+    public SetupWizard() throws IOException, InterruptedException, ReactorException {
         generateToken();
     }
 
-    @Override
-    protected void setGlobalInstance(Jenkins jenkins) {
-        // setup wizard is not global jenkins
+    @Restricted(NoExternalUse.class)
+    Jenkins getInstance() { // not public so Stapler won't dispatch it
+        return Jenkins.getInstance();
     }
 
     private void generateToken() {
@@ -56,136 +54,92 @@ public class SetupWizard extends Hudson {
         LOGGER.info("SetupWizard SecurityToken: " + randomUUID);
     }
 
-    public Object getAssets() {
+    public AssetManager getAssets() {
         return assetManager;
     }
 
-    public Object getI18n() {
+    public I18n getI18n() {
         return i18n;
     }
 
     @Override
+    public String getDisplayName() {
+        return "Setup Wizard";
+    }
+
     public AdjunctManager getAdjuncts(String dummy) {
         return Jenkins.getInstance().getAdjuncts(dummy);
     }
 
-    @Override
     public UpdateCenter getUpdateCenter() {
         return Jenkins.getInstance().getUpdateCenter();
     }
 
-    @Override
     public PluginManager getPluginManager() {
         return Jenkins.getInstance().getPluginManager();
     }
 
-    @Override
     public boolean isUseCrumbs() {
         return Jenkins.getInstance().isUseCrumbs();
     }
 
-    @Override
     public CrumbIssuer getCrumbIssuer() {
         return Jenkins.getInstance().getCrumbIssuer();
     }
 
     @SuppressWarnings("rawtypes")
-    @Override
     public Descriptor getDescriptorByName(String id) {
         return Jenkins.getInstance().getDescriptorByName(id);
     }
 
-    @Override
-    public Descriptor getDescriptor(Class<? extends Describable> type) {
+    public Descriptor<?> getDescriptor(Class<? extends Describable<?>> type) {
         return Jenkins.getInstance().getDescriptor(type);
     }
 
-    @Override
     public List<Action> getActions() {
         return Jenkins.getInstance().getActions();
     }
 
-    @Override
     public AuthorizationStrategy getAuthorizationStrategy() {
         return Jenkins.getInstance().getAuthorizationStrategy();
     }
 
-    @Override
     public View getPrimaryView() {
         return Jenkins.getInstance().getPrimaryView();
     }
 
-    @Override
     public void reload() throws IOException, InterruptedException, ReactorException {
     }
 
-    @Override
-    public Object getDynamic(String token) {
-        if (!isAllowedSetupPage(token)) {
-            LOGGER.warning("DISALLOW NON-SETUP PAGE: " + token);
-            return this;
+    /**
+     * Block as many requests as possible; allow serving a few required CSS files
+     */
+    public void doDynamic(StaplerRequest req, StaplerResponse rsp) throws IOException, ServletException {
+        if(req.getOriginalRequestURI().endsWith(".css")) {
+            getAdjuncts("").doDynamic(req, rsp);
         }
-        return Jenkins.getInstance().getDynamic(token);
     }
 
-    private boolean isAllowedSetupPage(String token) {
-        return "securityRealm".equals(token)
-            || "configureSecurity".equals(token);
-    }
-
-    @Override
     public SecurityRealm getSecurityRealm() {
         return Jenkins.getInstance().getSecurityRealm();
-    }
-
-    @Override
-    public void setSecurityRealm(SecurityRealm securityRealm) {
-        throw new NotImplementedException();
     }
 
     public GlobalSecurityConfiguration getConfigureSecurity() {
         return securityConfiguration;
     }
 
-    public void doCompleteSetup() {
-        try {
-            Jenkins j = Jenkins.getInstance();
-            j.setInstallState(InstallState.INITIAL_SETUP_COMPLETED);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     @SuppressWarnings("rawtypes")
-    @Override
     public Descriptor getDescriptor(String id) {
         return Jenkins.getInstance().getDescriptor(id);
     }
 
     @SuppressWarnings("rawtypes")
-    @Override
     public Descriptor getDescriptorOrDie(Class<? extends Describable> type) {
         return Jenkins.getInstance().getDescriptorOrDie(type);
     }
 
     @SuppressWarnings("rawtypes")
-    @Override
     public <T extends Descriptor> T getDescriptorByType(Class<T> type) {
         return Jenkins.getInstance().getDescriptorByType(type);
-    }
-
-    @Override
-    public Plugin getPlugin(String shortName) {
-        return Jenkins.getInstance().getPlugin(shortName);
-    }
-
-    @Override
-    public <P extends Plugin> P getPlugin(Class<P> clazz) {
-        return Jenkins.getInstance().getPlugin(clazz);
-    }
-
-    @Override
-    public <P extends Plugin> List<P> getPlugins(Class<P> clazz) {
-        return Jenkins.getInstance().getPlugins(clazz);
     }
 }
