@@ -17,8 +17,8 @@ import hudson.init.InitStrategy;
 import jenkins.model.Jenkins;
 
 /**
- * This class is responsible for skipping any init tasks that result in
- * open ports
+ * This class is responsible for splitting the initialization phases and
+ * allowing for contiuation
  */
 public class SplitInitStrategy extends InitStrategy {
     private static final Logger LOGGER = Logger.getLogger(SplitInitStrategy.class.getName());
@@ -27,12 +27,11 @@ public class SplitInitStrategy extends InitStrategy {
     protected InitMilestone milestone;
     protected Set<Task> executed = new HashSet<Task>();
     protected Set<Task> skipped = new HashSet<Task>();
-    protected TaskBuilder[] taskBuilders;
+    protected TaskBuilder[] taskBuilders = {};
 
-    public SplitInitStrategy(InitStrategy delegate, InitMilestone milestone, TaskBuilder ... taskBuilders) {
+    public SplitInitStrategy(InitStrategy delegate, InitMilestone milestone) {
         this.delegate = delegate;
         this.milestone = milestone;
-        this.taskBuilders = taskBuilders;
     }
 
     /**

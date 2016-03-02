@@ -71,11 +71,7 @@ public class GlobalSecurityConfiguration extends ManagementLink implements Descr
 
     @Nonnull
     protected Jenkins getJenkins() {
-        Jenkins j = Jenkins.getInstance();
-        if(j == null) {
-            throw new NullPointerException("Jenkins not found.");
-        }
-        return j;
+        return Jenkins.getActiveInstance();
     }
 
     public MarkupFormatter getMarkupFormatter() {
@@ -109,9 +105,9 @@ public class GlobalSecurityConfiguration extends ManagementLink implements Descr
     public synchronized void doTestAuthentication(StaplerRequest req, StaplerResponse rsp) throws IOException, ServletException, FormException {
         SecurityContext oldContext = ACL.impersonate(ACL.SYSTEM);
         try {
-            Jenkins wiz = new TransientJenkins(Jenkins.getInstance());
-            configure(wiz, req, req.getSubmittedForm());
-            SecurityRealm securityRealm = wiz.getSecurityRealm();
+            Jenkins transientJenkins = new TransientJenkins(Jenkins.getInstance());
+            configure(transientJenkins, req, req.getSubmittedForm());
+            SecurityRealm securityRealm = transientJenkins.getSecurityRealm();
             if(securityRealm instanceof AbstractPasswordBasedSecurityRealm) {
                 String username = req.getParameter("username");
                 String password = req.getParameter("password");
@@ -139,6 +135,14 @@ public class GlobalSecurityConfiguration extends ManagementLink implements Descr
         } finally {
             bc.commit();
         }
+    }
+
+    /**
+     * This is here for possible compatibility
+     */
+    @Deprecated
+    public boolean configure(StaplerRequest req, JSONObject json) throws hudson.model.Descriptor.FormException {
+        return configure(getJenkins(), req, json);
     }
 
     protected boolean configure(Jenkins j, StaplerRequest req, JSONObject json) throws hudson.model.Descriptor.FormException {

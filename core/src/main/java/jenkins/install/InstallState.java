@@ -36,50 +36,63 @@ public enum InstallState {
     /**
      * New Jenkins install.
      */
-    NEW,
+    NEW(false),
     /**
      * New Jenkins install. The user has kicked off the process of installing an
      * initial set of plugins (via the install wizard).
      */
-    INITIAL_PLUGINS_INSTALLING,
+    INITIAL_PLUGINS_INSTALLING(false),
     /**
      * New Jenkins install. The initial set of plugins are now installed.
      */
-    INITIAL_PLUGINS_INSTALLED,
+    INITIAL_PLUGINS_INSTALLED(false),
     /**
      * Configuring security of an initial Jenkins install.
      */
-    CONFIGURING_SECURITY,
+    CONFIGURING_SECURITY(false),
     /**
      * Security configuration has been completed
      */
-    SECURITY_CONFIGURATION_COMPLETED,
+    SECURITY_CONFIGURATION_COMPLETED(false),
     /**
      * Creating an admin user for an initial Jenkins install.
      */
-    CREATING_ADMIN_USER,
+    CREATING_ADMIN_USER(false),
     /**
      * Admin user has been created
      */
-    ADMIN_USER_CREATED,
+    ADMIN_USER_CREATED(false),
     /**
      * Restart of an existing Jenkins install.
      */
-    RESTART,
+    RESTART(true),
     /**
      * Upgrade of an existing Jenkins install.
      */
-    UPGRADE,
+    UPGRADE(true),
     /**
      * Downgrade of an existing Jenkins install.
      */
-    DOWNGRADE,
+    DOWNGRADE(true),
     /**
      * Jenkins started in test mode (JenkinsRule).
      */
-    TEST,
+    TEST(true),
     /**
      * The initial set up has been completed
      */
-    INITIAL_SETUP_COMPLETED
+    INITIAL_SETUP_COMPLETED(true);
+
+    private final boolean isSetupComplete;
+
+    private InstallState(boolean isSetupComplete) {
+        this.isSetupComplete = isSetupComplete;
+    }
+
+    /**
+     * Indicates the initial setup is complete
+     */
+    public boolean isSetupComplete() {
+        return isSetupComplete;
+    }
 }

@@ -27,11 +27,9 @@ import com.thoughtworks.xstream.converters.UnmarshallingContext;
 import hudson.Extension;
 import hudson.ExtensionList;
 import hudson.Util;
-import hudson.WebAppMain;
 import hudson.diagnosis.OldDataMonitor;
 import hudson.model.Descriptor;
 import jenkins.install.InstallState;
-import jenkins.install.SetupWizard;
 import jenkins.model.Jenkins;
 import hudson.model.ManagementLink;
 import hudson.model.ModelObject;
@@ -730,7 +728,7 @@ public class HudsonPrivateSecurityRealm extends AbstractPasswordBasedSecurityRea
 
             /* allow signup from the Jenkins home page, or /manage, which is where a /configureSecurity form redirects to */
             if((req.getRequestURI().equals(req.getContextPath()+"/") || req.getRequestURI().equals(req.getContextPath() + "/manage"))
-                    && !(Jenkins.getInstance().servletContext.getAttribute(WebAppMain.APP) instanceof SetupWizard)) { // also skip during the setup wizard
+                    && Jenkins.getActiveInstance().getInstallState().isSetupComplete()) { // also skip during the setup wizard
                 if (needsToCreateFirstUser()) {
                     ((HttpServletResponse)response).sendRedirect("securityRealm/firstUser");
                 } else {// the first user already created. the role of this filter is over.

@@ -13,7 +13,6 @@ import jenkins.model.Jenkins;
  * as the global instance
  */
 public class TransientJenkins extends Hudson {
-    private boolean useSecurity = false;
     private SecurityRealm securityRealm;
 
     public TransientJenkins(Jenkins base) throws IOException, InterruptedException, ReactorException {
@@ -43,7 +42,6 @@ public class TransientJenkins extends Hudson {
     public void setSecurityRealm(SecurityRealm securityRealm) {
         if(securityRealm==null)
             securityRealm= SecurityRealm.NO_AUTHENTICATION;
-        this.useSecurity = true;
         this.securityRealm = securityRealm;
     }
 
