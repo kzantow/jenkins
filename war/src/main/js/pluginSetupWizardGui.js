@@ -3,18 +3,20 @@
  */
 
 // Require modules here, make sure they get browserify'd/bundled
+var jquery = require('jquery-detached');
 var bootstrap = require('bootstrap-detached');
 var jenkins = require('./util/jenkins');
 var pluginManager = require('./api/pluginManager');
 var securityConfig = require('./api/securityConfig');
 var wh = require('window-handle');
 
-window.zq = bootstrap.getBootstrap();
+window.zq = jquery.getJQuery();
 
 // Setup the dialog, exported
 var createPluginSetupWizard = function(appendTarget) {
 	// call getJQuery / getBootstrap within the main function so it will work with tests -- if getJQuery etc is called in the main
-	var $ = bootstrap.getBootstrap();
+	var $ = jquery.getJQuery();
+	var $bs = bootstrap.getBootstrap();
 
 	var Handlebars = jenkins.initHandlebars();
 
@@ -140,7 +142,7 @@ var createPluginSetupWizard = function(appendTarget) {
 
 	// show tooltips; this is done here to work around a bootstrap/prototype incompatibility
 	$(document).on('mouseenter', '*[data-tooltip]', function() {
-		var $tip = $(this);
+		var $tip = $bs(this);
 		var text = $tip.attr('data-tooltip');
 		if(!text) {
 			return;
@@ -450,7 +452,7 @@ var createPluginSetupWizard = function(appendTarget) {
 				}
 			}
 			setPanel(pluginSelectionPanel, pluginSelectionPanelData(), function() {
-				$('.plugin-selector .plugin-list').scrollspy({ target: '.plugin-selector .categories' });
+				$bs('.plugin-selector .plugin-list').scrollspy({ target: '.plugin-selector .categories' });
 			});
 		});
 	};
