@@ -118,7 +118,7 @@ public class HudsonPrivateSecurityRealm extends AbstractPasswordBasedSecurityRea
         this.disableSignup = !allowsSignup;
         this.enableCaptcha = enableCaptcha;
         setCaptchaSupport(captchaSupport);
-        if(needsToCreateFirstUser()) {
+        if(!allowsSignup && !hasSomeUser()) {
             // if Hudson is newly set up with the security realm and there's no user account created yet,
             // insert a filter that asks the user to create one
             try {
