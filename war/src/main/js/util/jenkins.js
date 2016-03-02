@@ -213,3 +213,64 @@ exports.testConnectivity = function(handler) {
 	};
 	testConnectivity();
 };
+
+/**
+ * gets the window containing a form, taking in to account top-level iframes
+ */
+exports.getWindow = function($form) {
+	var $ = jquery.getJQuery();
+	$form = $($form);
+	var wnd = wh.getWindow();
+	$(top.document).find('iframe').each(function() {
+		var windowFrame = this.contentWindow;
+		var $f = $(this).contents().find('form');
+		if($f.length > 0 && $form[0] === $f[0]) {
+			wnd = windowFrame;
+		}
+	});
+	return wnd;
+};
+
+/**
+ * Builds a stapler form post
+ */
+exports.buildFormPost = function($form) {
+	var $ = jquery.getJQuery();
+	$form = $($form);
+	var wnd = exports.getWindow($form);
+	var form = $form[0];
+	if(wnd.buildFormTree(form)) {
+		return $form.serialize() +
+			'&core:apply=&Submit=Save&json=' + $form.find('input[name=json]').val();
+	}
+	return '';
+};
+
+/**
+ * Gets the crumb, if crumbs are enabled
+ */
+exports.getFormCrumb = function($form) {
+	var $ = jquery.getJQuery();
+	$form = $($form);
+	var wnd = exports.getWindow($form);
+	return wnd.crumb;
+};
+
+/**
+ * Jenkins Stapler JSON POST callback
+ * If last parameter is an object, will be extended to jQuery options (e.g. pass { error: function() ... } to handle errors)
+ */
+exports.staplerPost = function(url, $form, success, options) {
+	var $ = jquery.getJQuery();
+	$form = $($form);
+	var postBody = exports.buildFormPost($form);
+	var crumb = exports.getFormCrumb($form);
+	exports.post(
+		url,
+		postBody,
+		success, $.extend({
+			processData: false,
+			contentType: 'application/x-www-form-urlencoded',
+			crumb: crumb
+		}, options));
+};

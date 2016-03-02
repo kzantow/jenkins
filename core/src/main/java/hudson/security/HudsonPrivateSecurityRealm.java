@@ -120,7 +120,7 @@ public class HudsonPrivateSecurityRealm extends AbstractPasswordBasedSecurityRea
         this.disableSignup = !allowsSignup;
         this.enableCaptcha = enableCaptcha;
         setCaptchaSupport(captchaSupport);
-        if(!allowsSignup && !hasSomeUser()) {
+        if(needsToCreateFirstUser()) {
             // if Hudson is newly set up with the security realm and there's no user account created yet,
             // insert a filter that asks the user to create one
             try {
@@ -161,6 +161,16 @@ public class HudsonPrivateSecurityRealm extends AbstractPasswordBasedSecurityRea
             if(u.getProperty(Details.class)!=null)
                 return true;
         return false;
+    }
+
+    /**
+     * Indicates it's necessary to create an admin user
+     * @return
+     */
+    private static boolean needsToCreateFirstUser() {
+        return !hasSomeUser()
+            && Jenkins.getInstance().getSecurityRealm() instanceof HudsonPrivateSecurityRealm
+            && !(Jenkins.getInstance().getAuthorizationStrategy() instanceof Unsecured);
     }
 
     /**
@@ -289,14 +299,17 @@ public class HudsonPrivateSecurityRealm extends AbstractPasswordBasedSecurityRea
         }
         String view = "firstUser.jelly";
         String referer = req.getReferer();
+        InstallState installState = Jenkins.getInstance().getInstallState();
         if(referer != null && referer.matches(".*(firstUserDirect).*")
-                || InstallState.CREATING_ADMIN_USER.equals(Jenkins.getInstance().getInstallState())) {
+                || InstallState.CREATING_ADMIN_USER.equals(installState)) {
             view = "firstUserDirect.jelly";
         }
         User u = createAccount(req, rsp, false, view);
         if (u!=null) {
             tryToMakeAdmin(u);
-            Jenkins.getInstance().setInstallState(InstallState.ADMIN_USER_CREATED);
+            if(!InstallState.INITIAL_SETUP_COMPLETED.equals(installState)) {
+                Jenkins.getInstance().setInstallState(InstallState.ADMIN_USER_CREATED);
+            }
             loginAndTakeBack(req, rsp, u);
         }
     }
@@ -726,11 +739,6 @@ public class HudsonPrivateSecurityRealm extends AbstractPasswordBasedSecurityRea
                 }
             } else
                 chain.doFilter(request,response);
-        }
-
-        private boolean needsToCreateFirstUser() {
-            return !hasSomeUser()
-                && Jenkins.getInstance().getSecurityRealm() instanceof HudsonPrivateSecurityRealm;
         }
 
         public void destroy() {

@@ -1000,6 +1000,10 @@ public class Jenkins extends AbstractCIBase implements DirectlyModifiableTopLeve
                 break;
             case INITIAL_SETUP_COMPLETED:
                 initPostSetupTasks(); // finish any remaining Jenkins initialization
+                Object app = servletContext.getAttribute(WebAppMain.APP);
+                if(app instanceof jenkins.install.SetupWizard) {
+                    ((jenkins.install.SetupWizard)app).cleanUp();
+                }
                 servletContext.setAttribute(WebAppMain.APP, this);
                 break;
             default:

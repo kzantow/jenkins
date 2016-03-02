@@ -101,6 +101,7 @@ var createPluginSetupWizard = function(appendTo) {
 	var pluginSelectionPanel = require('./templates/pluginSelectionPanel.hbs');
 	var successPanel = require('./templates/successPanel.hbs');
 	var setupCompletePanel = require('./templates/setupCompletePanel.hbs');
+	var proxyConfigPanel = require('./templates/proxyConfigPanel.hbs');
 	var securityPanel = require('./templates/securityPanel.hbs');
 	var firstUserPanel = require('./templates/firstUserPanel.hbs');
 	var offlinePanel = require('./templates/offlinePanel.hbs');
@@ -634,23 +635,20 @@ var createPluginSetupWizard = function(appendTo) {
 		}
 	};
 	
-	// call to change to setup security
-	var setupSecurity = function() {
-		setPanel(securityPanel, {}, function() {
-			$('iframe[src]').load(function() {
-				var location = $(this).contents().get(0).location.href;
-				$('button').prop({disabled:false});
-			});
+	var enableButtonsAfterFrameLoad = function() {
+		$('iframe[src]').load(function() {
+			var location = $(this).contents().get(0).location.href;
+			$('button').prop({disabled:false});
 		});
 	};
 	
+	// call to change to setup security
+	var setupSecurity = function() {
+		setPanel(securityPanel, {}, enableButtonsAfterFrameLoad);
+	};
+	
 	var setupFirstUser = function() {
-		setPanel(firstUserPanel, {}, function() {
-			$('iframe[src]').load(function() {
-				var location = $(this).contents().get(0).location.href;
-				$('button').prop({disabled:false});
-			});
-		});
+		setPanel(firstUserPanel, {}, enableButtonsAfterFrameLoad);
 	};
 	
 	// call to submit the security settings
@@ -693,7 +691,19 @@ var createPluginSetupWizard = function(appendTo) {
 			}
 		});
 	};
-
+	
+	// call to setup the proxy
+	var setupProxy = function() {
+		setPanel(proxyConfigPanel, {}, enableButtonsAfterFrameLoad);
+	};
+	
+	// Save the proxy config
+	var saveProxyConfig = function() {
+		securityConfig.saveProxy($('iframe[src]').contents().find('form:not(.no-json)'), function() {
+			setPanel(welcomePanel);
+		});
+	};
+	
 	// Call this to resume an installation after restart
 	var resumeInstallation = function() {
 		// don't re-initialize installing plugins
@@ -765,7 +775,10 @@ var createPluginSetupWizard = function(appendTo) {
 		'.install-done-restart': restartJenkins,
 		'.setup-security': setupSecurity,
 		'.save-security:not([disabled])': saveSecurity,
-		'.save-first-user:not([disabled])': saveFirstUser
+		'.save-first-user:not([disabled])': saveFirstUser,
+		'.show-proxy-config': setupProxy,
+		'.save-proxy-config': saveProxyConfig,
+		'.skip-plugin-installs': function() { installPlugins([]); }
 	};
 	for(var cls in actions) {
 		bindClickHandler(cls, actions[cls]);
