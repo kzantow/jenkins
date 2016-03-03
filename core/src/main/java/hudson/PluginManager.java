@@ -1176,7 +1176,7 @@ public abstract class PluginManager extends AbstractModelObject implements OnMas
                 public void run() {
                     INSTALLING: while (true) {
                         try {
-                            updateCenter.persistInstallStatus();
+                updateCenter.persistInstallStatus();
                             Thread.sleep(500);
                             for (Future<UpdateCenter.UpdateCenterJob> jobFuture : installJobs) {
                                 if(!jobFuture.isDone() && !jobFuture.isCancelled()) {
@@ -1188,13 +1188,13 @@ public abstract class PluginManager extends AbstractModelObject implements OnMas
                         }
                         break;
                     }
-                    updateCenter.persistInstallStatus();
+            updateCenter.persistInstallStatus();
                     jenkins.setInstallState(InstallState.INITIAL_PLUGINS_INSTALLED);
                     InstallUtil.saveLastExecVersion();
                 }
             }.start();
         }
-
+        
         // Fire a one-off thread to wait for the plugins to be deployed and then
         // refresh the dependant plugins list.
         new Thread() {
@@ -1219,7 +1219,7 @@ public abstract class PluginManager extends AbstractModelObject implements OnMas
                 }
             }
         }.start();
-
+        
     }
 
     private UpdateSite.Plugin getPlugin(String pluginName, String siteName) {

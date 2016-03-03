@@ -90,7 +90,7 @@ public class SetupWizard implements DescriptorByNameOwner {
     private String randomUUID;
     private AssetManager assetManager = new AssetManager();
     private I18n i18n = new I18n();
-    private SetupWizardSecurityConfiguration securityConfiguration = new SetupWizardSecurityConfiguration();;
+    private SetupWizardSecurityConfiguration securityConfiguration = new SetupWizardSecurityConfiguration();
 
     /**
      * Whether this system requires a security token; -Djenkins.install.skip.security=true will
@@ -117,7 +117,7 @@ public class SetupWizard implements DescriptorByNameOwner {
     @Nonnull
     @Restricted(NoExternalUse.class)
     Jenkins getInstance() { // not public so Stapler won't dispatch it
-        return Jenkins.getInstance();
+        return Jenkins.getActiveInstance();
     }
 
     private void generateToken() {
@@ -210,9 +210,6 @@ public class SetupWizard implements DescriptorByNameOwner {
 
     public View getPrimaryView() {
         return getInstance().getPrimaryView();
-    }
-
-    public void reload() throws IOException, InterruptedException, ReactorException {
     }
 
     /**
