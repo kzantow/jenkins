@@ -65,9 +65,11 @@ public class SetupWizard implements DescriptorByNameOwner {
                 Cookie cookie = Functions.getCookie(req, securityTokenParameterName);
                 if (cookie == null || !randomUUID.equals(cookie.getValue())) {
                     if (randomUUID.equals(req.getParameter(securityTokenParameterName))) {
-                        ((HttpServletResponse)response).addCookie(new Cookie(securityTokenParameterName, randomUUID));
+                        cookie = new Cookie(securityTokenParameterName, randomUUID);
+                        cookie.setPath(req.getContextPath());
+                        ((HttpServletResponse)response).addCookie(cookie);
                     }
-                    else if (!Pattern.compile(".*[.](css|ttf|gif|wof|png|js)").matcher(req.getRequestURI()).matches()) {
+                    else if (!Pattern.compile(".*[.](css|ttf|gif|woff|eot|png|js)").matcher(req.getRequestURI()).matches()) {
                         // Allow js & css requests through
                         chain.doFilter(new HttpServletRequestWrapper(req) {
                             public String getRequestURI() {
@@ -76,6 +78,7 @@ public class SetupWizard implements DescriptorByNameOwner {
                         }, response);
                         return;
                     }
+                    // fall through to handling the request normally
                 }
             }
             chain.doFilter(request, response);
@@ -136,7 +139,7 @@ public class SetupWizard implements DescriptorByNameOwner {
                     + "*************************************************************\n"
                     + "\n"
                     + "Jenkins initial setup is required. A security token is required to proceed. \n"
-                    + "Please copy the following setup to use the installation wizard: \n"
+                    + "Please use the following security token to proceed to installation: \n"
                     + "\n"
                     + "" + randomUUID + "\n"
                     + "\n"
