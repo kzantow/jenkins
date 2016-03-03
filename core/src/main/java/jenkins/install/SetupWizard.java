@@ -238,6 +238,9 @@ public class SetupWizard implements DescriptorByNameOwner {
 
     @SuppressWarnings("rawtypes")
     public Descriptor getDescriptor(String id) {
+        if(SetupWizardSecurityConfiguration.class.getName().equals(id)) {
+            return securityConfiguration.getDescriptor();
+        }
         return getInstance().getDescriptor(id);
     }
 
