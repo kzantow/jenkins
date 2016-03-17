@@ -221,7 +221,7 @@ public class PluginManagerTest {
         assertNull(r.jenkins.getPluginManager().getPlugin("tasks"));
         List<Future<UpdateCenterJob>> jobs = r.jenkins.getPluginManager().prevalidateConfig(new StringInputStream("<whatever><tasks plugin=\"tasks@2.23\"/></whatever>"));
         assertEquals(1, jobs.size());
-        UpdateCenterJob job = jobs.get(0).get(); // blocks for completion
+        UpdateCenterJob job = jobs.get(jobs.size()-1).get(); // blocks for completion
         assertEquals("InstallationJob", job.getType());
         UpdateCenter.InstallationJob ijob = (UpdateCenter.InstallationJob) job;
         assertEquals("tasks", ijob.plugin.name);

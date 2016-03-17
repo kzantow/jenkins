@@ -242,7 +242,7 @@ public class ClassicPluginStrategy implements PluginStrategy {
             }
         }
         
-        fix(atts,optionalDependencies);
+        applyImpliedDependencies(atts, dependencies);
 
         // Register global classpath mask. This is useful for hiding JavaEE APIs that you might see from the container,
         // such as database plugin for JPA support. The Mask-Classes attribute is insufficient because those classes
@@ -260,14 +260,25 @@ public class ClassicPluginStrategy implements PluginStrategy {
                 createClassLoader(paths, dependencyLoader, atts), disableFile, dependencies, optionalDependencies);
     }
 
-    private static void fix(Attributes atts, List<PluginWrapper.Dependency> optionalDependencies) {
+    private static void applyImpliedDependencies(Attributes atts, List<PluginWrapper.Dependency> dependencies) {
+        if(!applyImplicitDependencies) {
+            return;
+        }
         String pluginName = atts.getValue("Short-Name");
         
         String jenkinsVersion = atts.getValue("Jenkins-Version");
         if (jenkinsVersion==null)
             jenkinsVersion = atts.getValue("Hudson-Version");
         
-        optionalDependencies.addAll(getImpliedDependencies(pluginName, jenkinsVersion));
+        Set<String> deps = new HashSet<String>();
+        for(PluginWrapper.Dependency dep : dependencies) {
+            deps.add(dep.shortName);
+        }
+        for(PluginWrapper.Dependency dep : getImpliedDependencies(pluginName, jenkinsVersion)) {
+            if(!deps.contains(dep.shortName)) {
+                dependencies.add(dep);
+            }
+        }
     }
     
     /**
@@ -414,6 +425,7 @@ public class ClassicPluginStrategy implements PluginStrategy {
         }
     }
 
+    private static boolean applyImplicitDependencies = true;
     private static final List<DetachedPlugin> DETACHED_LIST = Collections.unmodifiableList(Arrays.asList(
             new DetachedPlugin("maven-plugin", "1.296", "1.296"),
             new DetachedPlugin("subversion", "1.310", "1.0"),
