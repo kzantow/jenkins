@@ -99,7 +99,7 @@ public class SetupWizard implements DescriptorByNameOwner {
      * Whether this system requires a security token; -Djenkins.install.skip.security=true will
      * allow skipping of this security token
      */
-    private boolean requireSecurityToken = !"true".equalsIgnoreCase(System.getProperty("jenkins.install.skip.security"));
+    private boolean requireSecurityToken = "true".equalsIgnoreCase(System.getProperty("jenkins.install.requireSecurityToken"));
 
     /**
      * The security token parameter name
