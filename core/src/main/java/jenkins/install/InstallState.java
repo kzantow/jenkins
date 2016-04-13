@@ -28,6 +28,9 @@ import javax.annotation.CheckForNull;
 import org.kohsuke.accmod.Restricted;
 import org.kohsuke.accmod.restrictions.NoExternalUse;
 
+import hudson.security.HudsonPrivateSecurityRealm;
+import jenkins.model.Jenkins;
+
 /**
  * Jenkins install state.
  *
@@ -48,10 +51,22 @@ public enum InstallState {
      */
     CREATE_ADMIN_USER(false, INITIAL_SETUP_COMPLETED),
     /**
+     * Configure security
+     */
+    CONFIGURE_SECURITY(false, CREATE_ADMIN_USER) {
+        @Override
+        public InstallState getNextState() {
+            if(Jenkins.getInstance().getSecurityRealm() instanceof HudsonPrivateSecurityRealm) {
+                return CREATE_ADMIN_USER;
+            }
+            return INITIAL_SETUP_COMPLETED;
+        }
+    },
+    /**
      * New Jenkins install. The user has kicked off the process of installing an
      * initial set of plugins (via the install wizard).
      */
-    INITIAL_PLUGINS_INSTALLING(false, CREATE_ADMIN_USER),
+    INITIAL_PLUGINS_INSTALLING(false, CONFIGURE_SECURITY),
     /**
      * New Jenkins install.
      */
